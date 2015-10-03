@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>CMon 4 %appName% | Login</title>
+    
+    <script src="js/jquery/jquery-2.1.1.min.js"></script>
+    
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+    <link href="font-awesome/css/font-awesome.css" rel="stylesheet">
+
+    <link href="css/animate.css" rel="stylesheet">
+    <link href="css/style.css" rel="stylesheet">
+    <link href="css/custom.css" rel="stylesheet">
+
+</head>
+
+<body class="gray-bg skin-1">
+
+    <div class="middle-box text-center loginscreen  animated fadeInDown">
+        <div>
+            <div>
+
+                <h1 class="logo-name">CMon</h1>
+
+            </div>
+            <h3>Welcome to CMon for <br/> %appName%+</h3>
+            <p>Login in. To see it in action.</p>
+            <form class="m-t" role="form" action="/login" method="post">
+                <div class="form-group">
+                    <input type="text" class="form-control" placeholder="Username" name="username" required="">
+                </div>
+                <div class="form-group">
+                    <input type="password" class="form-control" placeholder="Password" name="password" required="">
+                </div>
+                <button type="submit" class="btn btn-primary block full-width m-b">Login</button>
+                <div id="loginError" class="alert alert-danger alert-dismissable" style="display: none">
+                	<button aria-hidden="true" data-dismiss="alert" class="close" type="button">x</button>
+                	Wrong username or password.
+                </div>
+                <script type="text/javascript">
+                $( document ).ready(function() {
+								    if ('%loginError%'.length > 1) {
+								    	$('#loginError').show();
+								    }
+								});
+								</script>
+
+            </form>
+            <p class="m-t"> <small>Copyrighted by manu AT cappelleri.net &copy; 2014</small> </p>
+        </div>
+    </div>
+
+</body>
+
+</html>

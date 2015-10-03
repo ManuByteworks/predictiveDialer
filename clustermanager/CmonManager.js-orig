@@ -1,0 +1,532 @@
+var cluster = require('cluster');
+var manAlert = require('./managerAlert');
+var util = require('util');
+var os = require('os');
+var file = fs = require('fs');
+var nconf = require('nconf');
+var CmonManager = function() {
+	this.workers = [];
+	this.alerts = { timeindexes: []};
+	this.stats = [];
+	this.managerStats = { timeindexes: [] };
+	this.cpucount = os.cpus().length;
+	this.cpumodel = os.cpus()[0].model;
+	this.cpuavgspeed = 0;
+	for (var i = 0; i < os.cpus().length; i++) {
+		this.cpuavgspeed = this.cpuavgspeed + os.cpus()[i].speed;
+	}
+	this.cpuavgspeed = this.cpuavgspeed / os.cpus().length;
+	this.ostype = os.platform();
+	this.osrelease = os.release();
+	this.hostname = os.hostname();
+	this.osarch = os.arch();
+	this.osmemory = os.totalmem();
+	this.uptime = os.uptime();
+	this.interfaces = [];
+	var ints = os.networkInterfaces();
+	
+	for (var n in ints) {
+		if (ints.hasOwnProperty(n)) {
+			var adds = [];
+			for (var i = 0; i < ints[n].length; i++) {
+				adds.push(ints[n][i].address);
+			}
+			this.interfaces.push({name: n, addresses: adds});
+		}
+	}
+	ints = null;
+	this.cpustats = [];
+	this.runningWorkers = 0;
+	this.memorystats = [];
+	this.timers = {};
+	this.startTime = new Date();
+	this.workersStats = [];
+	//this.alerts.push(new manAlert('system', 'Manager start up', 'Manager has started operations'));
+	thisStats = {};
+	thisStats.timeindexes = [];
+	if (fs.existsSync("clustermanager/_stats/managerStats.json") && false) {
+		var lines = fs.readFileSync("clustermanager/_stats/managerStats.json").toString().split("\n")
+		var len = lines.length;
+		var cnt = 0;
+		for (var i = 0; i < len; i++) {
+			try {
+				
+				var o = JSON.parse(lines[i]);
+				cnt++;
+				thisStats.timeindexes.push(o.timeindex);
+				thisStats[o.timeindex] = o.data;
+			} catch(e) {
+				console.log(e);
+			}
+		}
+		console.log("Loaded " + cnt + " old stats");
+	}
+	this.nconf = nconf;
+	this.nconf.file('conf/config.json');
+	this.nconf.defaults({
+		'appName' : 'Default cluster app',
+		'memoryDebug' : true,
+		'appShortName' : 'CMon',
+		'workersNumber' : 3, // default is "do not start" workers
+		'workersLifetimeSeconds' : 60, //set to 0 to disable killing
+		'restartAfterTimeLimit' : false,
+		'workersLifetimeRequests' : 0, //set to 0 to disable killing
+		'appPort' : 3000,
+		'manEnabled' : true,
+		'manSessionSecret' : 'setThisToSomethingSecret',
+		'manCookieName' : 'WPCLUSTERADM',
+		'manPort' : 3001,
+		'manUsername' : 'cluster-admin',
+		'manPassword' : 'cluster-password',
+		'stats' : true,
+		'workersStatsMode' : 'interval', // or 'realtime'
+		'statsInterval' : 500, // if stastMode == 'interval', this is the interval in ms
+		'managerStatsAggregate' : true,
+		'statsPersist' : true,
+		'statsMaxAge' : 1000 * 60, //in ms
+		'workersStatsAggregate' : true,
+		'workersRamWarnLimit' : 0,
+		'workersRamKillLimit' : 0
+	});
+	
+	if (this.nconf.get('appPort') < 1) {
+		var error = new Error("Please set your Application Port (appPort)");
+		return error;
+	}
+	if (this.nconf.get('manPort') < 1) {
+		var error = new Error("Please set your Management Port (manPort)");
+		return error;
+	}
+	if (!this.nconf.get('manPassword') || this.nconf.get('manPassword') == "") {
+		var error = new Error("Management password must be set");
+		return error;
+	}
+	this.statsinit();
+	this.expiretimer = setInterval(this.checkOldWorkers.bind(this), 1000);
+};
+
+CmonManager.prototype.checkOldWorkers = function() {
+	if (this.nconf.get('restartAfterTimeLimit') == true && this.workers && this.workers.length) {
+		now = (new Date()).getTime();
+		for (var i = 0; i < this.workers.length; i++) {
+			if (this.workers[i].killafter < now) {
+				console.log("Killing old worker: " + this.workers[i].killafter , (now - this.workers[i].killafter));
+				this.restartWorker(this.workers[i].pid);
+			}
+		}
+	}
+};
+
+CmonManager.prototype.workersSorter = function(a, b) {
+  if (a.starttime < b.starttime)
+     return -1;
+  if (a.starttime > b.starttime)
+    return 1;
+  return 0;
+};
+
+CmonManager.prototype.startup = function() {
+	var express = require('express');
+	var app = express();
+	var session = require('express-session');
+	var RedisStore = require('connect-redis')(session);
+	var store = new RedisStore({});
+	app.use(session({
+    store: store,
+    name: this.nconf.get('manCookieName'),
+    secret: this.nconf.get('manSessionSecret'),
+    resave: false,
+		saveUninitialized: false
+	}));
+	
+	var routing = require('./CmonRouter')(this);
+	app.use('/', routing);
+	
+	app.listen(this.nconf.get('manPort'));
+	
+	console.log('Manager interface started on port: ' + this.nconf.get('manPort') + ' and pid: ' + process.pid);
+	this.addEvent('system','Startup','Cmon Manager startup');
+	//cluster.on('message', this.workerMessage.bind(this));
+	cluster.on('exit', this.workerDied.bind(this));
+	if (this.nconf.get('enableWorkers')) {
+		for (var i = 0; i < parseInt(this.nconf.get('workersNumber'),10); i++) {
+			//Fork new worker!
+			this.addWorker();
+		}
+	}
+	return app;
+};
+
+CmonManager.prototype.findWorkerByPid = function(pid) {
+	for (var i = 0; i < this.workers.length; i++) {
+		if (this.workers[i].pid == pid) {
+			return this.workers[i];
+		}
+	}
+	return null;
+};
+
+CmonManager.prototype.findWorkerIndexByPid = function(pid) {
+	for (var i = 0; i < this.workers.length; i++) {
+		if (this.workers[i].pid == pid) {
+			return i;
+		}
+	}
+	return null;
+};
+
+CmonManager.prototype.restartWorker = function(pid) {
+	var w = this.findWorkerByPid(pid);
+	if (!w) {
+		console.log("Unable to find worker with pid = " + pid);
+		return;
+	}
+	w.autorestart = true;
+	this.sendMessageToWorker(w, { cmd: 'CMON-SHUTDOWN' });
+};
+
+CmonManager.prototype.killWorker = function(pid) {
+	var w = this.findWorkerByPid(pid);
+	if (!w) {
+		console.log("Unable to find worker with pid = " + pid);
+		return;
+	}
+	w.autorestart = false;
+	this.sendMessageToWorker(w, { cmd: 'CMON-SHUTDOWN' });
+};
+
+CmonManager.prototype.killWorkerForMemoryUsage = function(pid) {
+	var w = this.findWorkerByPid(pid);
+	//w.autorestart = true;
+	this.sendMessageToWorker(w, { cmd: 'CMON-SHUTDOWN' });
+};
+
+CmonManager.prototype.warnWorkerForMemoryUsage = function(pid, msg) {
+	var w = this.findWorkerByPid(pid);
+	this.sendMessageToWorker(w, { cmd: 'CMON-MEMORYWARNING' });
+	console.log("Warned worker " + pid + " for memory usage");
+	w.warned = true;
+	w.lastwarning = new Date().getTime();
+	
+};
+
+CmonManager.prototype.saveStatsToWorker = function(pid, msg) {
+	var w = this.findWorkerByPid(pid);
+	if (!w) {
+		console.log("Discard");
+		return;
+	}
+	if (!w.stats) {
+		w.stats = {};
+	}
+	w.stats.memory = msg.memory;
+	w.stats.cpu = msg.cpu;
+	if (this.nconf.get('watchClustersMemory') == true) {
+		if (w.stats.memory.rss > this.nconf.get("workersRamKillLimit")) {
+			if (!w.warned) {
+				this.warnWorkerForMemoryUsage(pid);
+				this.addEvent('system', "Worker RAM usage warning", "Worker with pid " + pid + " warned for RAM usage");
+			} else {
+				this.killWorkerForMemoryUsage(pid);
+			}
+		} else if (w.stats.memory.rss > this.nconf.get("workersRamWarnLimit")) {
+			if (!w.warned || w.lastwarning > 0 && (new Date()).getTime() - w.lastwarning > 10000) {
+				this.warnWorkerForMemoryUsage(pid);
+				this.addEvent('system', "Worker RAM usage warning", "Worker with pid " + pid + " warned for RAM usage");
+			}
+			
+		} else {
+			w.warned = false;
+		}
+	}
+};
+
+CmonManager.prototype.workerDied = function(worker, code, signal) {
+	var w = this.findWorkerByPid(worker.process.pid);
+	if (!w) {
+		console.log("Unable to find dead worker with pid " + worker.process.pid);
+		this.addEvent('system','Error',"Unable to find dead worker with pid " + worker.process.pid);
+		return;
+	}
+	var idx = this.findWorkerIndexByPid(worker.process.pid);
+	if (idx > -1) {
+		console.log("Removing IDX = " + idx);
+		console.log("Current workers length = " + this.workers.length);
+		this.workers.splice(idx,1);
+		console.log("Current workers length = " + this.workers.length);
+	}
+	
+	if (w.autorestart) {
+		this.addWorker();
+	} else {
+		console.log("Worker died for ever");
+	}
+};
+
+CmonManager.prototype.workerMessage = function() {
+	var msg = arguments[0];
+	var pid = msg.pid;
+	var worker = this.findWorkerByPid(pid);
+	if (!worker) {
+		console.log("Got a message from worker with pid " + pid + ", but it's unknown to master");
+		return false;
+	}
+	if (msg.cmd) {
+		switch(msg.cmd) {
+			
+			case "CMON-READY":
+				this.addEvent('system','Worker ready','Worker ready (pid: ' + pid + ')');
+				this.sendConfToWorker(worker);
+			break;
+						
+			case "CMON-SERVERUP":
+				
+			break;
+			
+			case "CMON-SERVERDOWN":
+			
+			break;
+			
+			case "CMON-WEBSTATS":
+			
+			break;
+			
+			case "CMON-CUSTOMSTATS":
+				
+			break;
+			
+			case "CMON-WORKERSTATS":
+				//console.log("Got worker stats");
+				//console.log(pid, msg.memory, msg.cpu);
+				this.saveStatsToWorker(pid, msg);
+			break;
+			
+		}
+	}
+};
+CmonManager.prototype.sendMessageToWorker = function(worker, msg) {
+	worker.worker.send( msg );
+};
+
+CmonManager.prototype.sendConfToWorker = function(worker) {
+	worker.worker.send({ cmd: 'CMON-CONF', configuration: this.nconf.get() });
+};
+
+CmonManager.prototype.getRandomTime = function(avrg) {
+	avrg = parseInt(avrg,10);
+	avrg = avrg * 1000;
+	var offset = avrg/100*15;
+	//console.log("Offset = " + offset);
+	var min = avrg - offset;
+	var max = avrg + offset;
+	var num = parseInt(Math.random() * (max - min) + min);
+	//console.log("Setting timeout in " + num + " seconds (average = " + avrg + ")",min,max);
+	num = (new Date()).getTime() + num;
+	//console.log("Setting timeout in " + num + " seconds (average = " + avrg + ")",min,max);
+	return num;
+};
+
+CmonManager.prototype.addWorker = function() {
+	var w = cluster.fork();
+	w.on('message', this.workerMessage.bind(this));
+					
+	this.workers.push({
+		pid: w.process.pid, 
+		process: w.process, 
+		starttime: (new Date()).getTime(), 
+		worker: w, 
+		autorestart: true,
+		killafter: this.nconf.get('restartAfterTimeLimit') ? this.getRandomTime(this.nconf.get('workersTimeLimit')) : 0
+	});
+	
+	this.addEvent('system','Worker Start','New worker started (pid: ' + w.process.pid + ')');
+	console.log("Created new worker");
+};
+
+CmonManager.prototype.reload = function() {
+	if (this.nconf.get('enableWorkers') == true) {
+		var newNumber = parseInt(this.nconf.get('workersNumber'),10);
+		console.log("Current workers: " + this.workers.length);
+		if (newNumber !== this.workers.length) {
+			var diff = newNumber - this.workers.length;
+			//this.workers.sort(this.workersSorter);
+			if (diff < 0) {
+				for (var i = 0; i < diff*-1; i++) {
+					this.addEvent('system','Worker Kill','Sending worker a kill message');
+					var idx = this.workers.length - 1 - i;
+					if (idx > -1) {
+						console.log("Killing worker");
+						this.killWorker(this.workers[idx].pid);
+					}
+					
+				}
+			} else {
+				for (var i = 0; i < diff; i++) {
+					console.log("Starting worker");
+					this.addWorker();
+				}
+			}
+		}
+		
+		if (this.nconf.get('restartAfterTimeLimit') == true) {
+			var now = (new Date()).getTime();
+			for (var i = 0; i < this.workers.length; i++) {
+				if (this.workers[i].killafter == 0) {
+					this.workers[i].killafter = (new Date()).getTime() + this.getRandomTime(this.nconf.get('workersTimeLimit'));
+				}
+			}
+		} else {
+			for (var i = 0; i < this.workers.length; i++) {
+				if (this.workers[i].killafter != 0) {
+					this.workers[i].killafter = 0;
+				}
+			}
+		}
+		
+	} else {
+		if (this.workers && this.workers.length > 0) {
+			for (var i = 0; i < this.workers.length; i++) {
+				this.killWorker(this.workers[i].pid);
+			}
+		}
+	}
+};
+
+CmonManager.prototype.addEvent = function(altype, altitle, altext) {
+	var ts = (new Date()).getTime();
+	if (!this.alerts[ts]) { this.alerts[ts] = []; this.alerts.timeindexes.push(ts); }
+	this.alerts[ts].push(new manAlert(altype, altitle, altext));	
+};
+
+CmonManager.prototype.statscallback = function() {
+	setTimeout(this.statsinit.bind(this), this.nconf.get('statsInterval'));
+};
+
+CmonManager.prototype.statsinit = function() {
+	this.getStats(this.statscallback.bind(this));
+};
+
+CmonManager.prototype.getStats = function(maincallback) {
+	var d, ms, timeindex, cpu, isWin, fn, async, asyncTasks, i, y;
+	d = new Date();
+	ms = d.getMilliseconds();
+	if (ms > 750) {
+		d.setMilliseconds(750);
+	} else if (ms > 500) {
+		d.setMilliseconds(500);
+	} else if (ms > 250) {
+		d.setMilliseconds(250);
+	} else {
+		d.setMilliseconds(0);
+	}
+	timeindex = d.getTime();
+	d = null;
+	ms = null;
+	if (this.managerStats[timeindex]) {
+		console.log("Error: a stats record exists for timeindex = " + timeindex);
+	}
+	if (!this.managerStats[timeindex]) {
+		this.managerStats.timeindexes.push(timeindex);
+		this.managerStats[timeindex] = {
+			manager: {
+				pid: process.pid,
+				cpu: null,
+				memory: null,
+				freeMemory: null
+			},
+			workers: {}
+		};
+		/*
+		for (i = 0; i < this.workers.length; i++) {
+			this.managerStats[timeindex].workers.push({
+				pid: this.workers[i].pid,
+				cpu: null,
+				memory: this.workers[i].process.memoryUsage(),
+				freeMemory: os.freemem()
+			});
+		}
+		*/
+		this.managerStats[timeindex].manager.memory = process.memoryUsage();
+		this.managerStats[timeindex].manager.freeMemory = os.freemem();
+		
+		for (var i = 0; i < this.workers.length; i++) {
+			if (!this.workers[i].stats) { continue; }
+			var pid = this.workers[i].pid;
+			//console.log("Got stats for pid",pid);
+			this.managerStats[timeindex].workers[pid] = {
+				cpu: this.workers[i].stats.cpu,
+				memory: this.workers[i].stats.memory
+			}
+			delete this.workers[i].stats;
+		}
+		
+		isWin = /^win/.test(process.platform);
+		//manager cpu
+		if (isWin) {
+			var cpu = require('windows-cpu');
+			cpu.findLoad(process.pid, function(error, result) {
+				if (error) { 
+					this.managerStats[timeindex].manager.cpu = null;
+				} else {
+					this.managerStats[timeindex].manager.cpu = result.load;
+				}
+			  if (this.nconf.get('statsPersist') == true) {
+			  	file.appendFile("clustermanager/_stats/managerStats.json", JSON.stringify({ timeindex: timeindex, data: this.managerStats[timeindex] }) + os.EOL, {
+			  		"encoding" : "utf-8"
+			  	}, function (err) {
+		  			if (err) { console.log(err); }
+					  timeindex = null;
+					  cpu = null;
+						isWin = null;
+						fn = null;
+						async = null;
+						asyncTasks = null;
+						i = null;
+					  maincallback();
+					});
+				} else {
+					timeindex = null;
+				  cpu = null;
+					isWin = null;
+					fn = null;
+					async = null;
+					asyncTasks = null;
+					i = null;
+					maincallback();
+				}
+			}.bind(this));
+		}
+		
+
+	}
+	
+	var last = null;
+	for (y = this.managerStats.timeindexes.length - 1; y > -1; y--) {
+		var ti = this.managerStats.timeindexes[y];
+		
+		var diff = (new Date()).getTime() - ti; 
+		//console.log(this.nconf.get('statsMaxAge'), ti, (new Date()).getTime() - ti);
+		if (diff > this.nconf.get('statsMaxAge')) {
+			//console.log("Cleaning old stats...");
+			if (last == null) {
+				last = y;
+				//if (last > -1) this.managerStats.timeindexes.splice(0, last);
+				//console.log("Last = " + last);
+			}
+			//delete this.managerStats[ti];
+		} else {
+			//console.log("Keeping " + ti + " 'cause diff = " + diff);
+		}
+	}
+	if (last > -1) {
+		for (var y = 0; y < last; y++) {
+			var ti = this.managerStats.timeindexes[0];
+			this.managerStats.timeindexes.splice(0, 1);
+			delete this.managerStats[ti];
+			//console.log("Deleting " + ti);
+		}
+	}
+	last = null;
+};
+
+module.exports = CmonManager;

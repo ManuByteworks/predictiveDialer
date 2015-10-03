@@ -1,0 +1,21 @@
+doctype html
+head
+	meta(charset="utf-8")
+	meta(name="viewport" content="width=device-width, initial-scale=1.0")
+	title= error.status + " error - TMan"
+	link(href="css/bootstrap.min.css",rel="stylesheet")
+	link(href="font-awesome/css/font-awesome.css",rel="stylesheet")
+	link(href="css/animate.css",rel="stylesheet")
+	link(href="css/style.css",rel="stylesheet")
+body.gray-bg
+	div.middle-box.animated.fadeInDown(style="width: 800px")
+		h1 #{error.status}
+		h3.font-bold Internal Server Error - #{error.message}
+		div.error-desc #{error.stack}
+		
+		p.font-bold
+			br
+			| We feel sorry for that and we will soon try our best to fix the issue.
+		
+script(src="js/jquery-1.10.2.js")
+script(src="js/bootstrap.min.js")

@@ -1,0 +1,141 @@
+//- Breadcrumbs disabled in dashboard
+	div.row.wrapper.border-bottom.white-bg.page-heading
+		div.col-lg-9
+			h2 Dashboard
+			ol.breadcrumb
+				li Administration
+				li 
+					a.active(href="/dashboard") 
+						strong Dashboard
+
+div.row.white-bg.dashboard-header
+	div.col-sm-3
+		h2 Server facts 
+		ul.list-group.clear-list.m-t
+			li.list-group-item.first-item
+				span.pull-right #{locals.hostname}
+				//-span.label.label-success 1
+				| Hostname
+			li.list-group-item.first-item
+				span.pull-right #{locals.cpumodel}
+				//-span.label.label-success 1
+				| CPU Model
+			li.list-group-item.first-item
+				span.pull-right #{locals.cpuavgspeed/1000 + " GHz"}
+				//-span.label.label-success 1
+				| CPU Avg speed
+			li.list-group-item.first-item
+				span.pull-right #{locals.cpucount}
+				//-span.label.label-success 1
+				| Available logical CPUs
+			li.list-group-item.first-item
+				span.pull-right=locals.utils.bytesconverter(locals.osmemory)
+				//-span.label.label-success 1
+				| Total Memory
+			li.list-group-item.first-item
+				span.pull-right=locals.utils.moment.duration(locals.osuptime*1000).humanize()
+				//-span.label.label-success 1
+				| Uptime
+			li.list-group-item.first-item
+				span.pull-right #{locals.ostype}
+				//-span.label.label-success 1
+				| Operating System Type
+			li.list-group-item.first-item
+				span.pull-right #{locals.osarch}
+				//-span.label.label-success 1
+				| Operating System Arch
+			li.list-group-item.first-item
+				span.pull-right #{locals.osrelease}
+				//-span.label.label-success 1
+				| Operating System Release
+			for int in locals.interfaces
+				li.list-group-item.first-item!=locals.utils.truncate(int.name,20)
+					for addr in int.addresses 
+						span.pull-right #{addr}
+						br
+					
+				
+	div.col-sm-5
+		h2 Server Stats
+		div
+			div
+				h5 Manager CPU usage
+			div
+				div.flot-chart#flot-dashboard-manager-cpu-usage
+		div
+			div
+				h5 Manager RAM usage (%)
+			div
+				div.flot-chart#flot-dashboard-manager-ram-usage
+		div
+			div
+				h5 Manager RAM usage (bytes)
+			div
+				div.flot-chart#flot-dashboard-manager-ram-abs-usage
+		
+		div.m-l-md Workers stats
+		div.flot-chart.dashboard-chart#flot-dashboard-cpu-stats
+		div.row.text-left
+			div.col-xs-4
+				div.m-l-md
+					span.h4.font-bold.m-t.block Test
+			div.col-xs-4
+				div.m-l-md
+					span.h4.font-bold.m-t.block Test2
+			div.col-xs-4
+				div.m-l-md
+					span.h4.font-bold.m-t.block Test3
+	
+	div.col-sm-4
+		h2 Workers Stats
+		div
+			div
+				h5 Workers CPU usage
+			div
+				div.flot-chart#flot-dashboard-workers-cpu-usage
+		div
+			div
+				h5 Workers RAM usage
+			div
+				div.flot-chart#flot-dashboard-workers-memory-usage
+
+div.wrapper.wrapper-content
+	//- These boxes are now commented out	
+		div.row.gray-bg
+			div.col-lg-3
+				div.widget.lazur-bg.no-padding.no-margins.ibox
+					div.p-m
+						h1.m-xs=txt
+						h3.font-bold.no-margins
+						small smalltxt
+					div.flot-chart
+						div.flot-chart-content#flot-chart3
+	
+			div.col-lg-3
+				div.ibox.float-e-margins
+					div.ibox-title
+						h5 Activated Tours 
+					div.ibox-content
+						h1 
+						small test
+			div.col-lg-3
+				div.ibox.float-e-margins
+					div.ibox-title
+						h5 Activated Tours 
+					div.ibox-content
+						h1 
+						small test
+			div.col-lg-3
+				div.ibox.float-e-margins
+					div.ibox-title
+						h5 Activated Tours 
+					div.ibox-content
+						h1 
+						small test
+			
+div.footer.fixed
+	div.pull-right Cluster Manager v. 0.1
+	div
+		strong Copyright 
+		| Reflect.it s.r.l. &copy; 2014-2015
+		

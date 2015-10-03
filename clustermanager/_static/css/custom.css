@@ -1,0 +1,20 @@
+.loginscreen h1 {
+font-size: 70px;
+/* color: rgb(62, 139, 207); */
+}
+
+.loginscreen {
+        padding-top: 30px;
+}
+
+.loginscreen h3 {
+        color: #e6e6e6;
+}
+
+.loginscreen p {
+        color: #e6e6e6;
+}
+
+.widget {
+        border-radius: 0px;
+}

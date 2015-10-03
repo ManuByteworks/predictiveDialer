@@ -1,0 +1,141 @@
+var gracefulExit = require('express-graceful-exit');
+var util = require('util');
+
+var CmonWorker = function() {
+	process.on('message', this.handleMasterMessage.bind(this));
+	this.online = false;
+	this.statstimer = null;
+	this.startup();
+};
+
+// Worker/Manager communication
+
+CmonWorker.prototype.startup = function() {
+	//console.log("I am a worker!");
+	this.sendMessageToMaster('CMON-READY');
+};
+
+CmonWorker.prototype.shutdown = function() {
+	process.exit(1);
+};
+
+CmonWorker.prototype.sendMessageToMaster = function(cmd, msg) {
+	if (!msg) { msg = {}; }
+	msg.pid = process.pid;
+	msg.cmd = cmd;
+	process.send(msg);
+};
+
+CmonWorker.prototype.getApp = function() {
+	if (this.app) { return this.app; }
+	this.app = require('express')();
+	return this.app;
+};
+
+CmonWorker.prototype.listen = function(port) {
+	if (!port) {
+		port = this.conf.appPort;
+	}
+	if (port < 1) { 
+		console.log("About to listen on port " + port);
+		return false; 
+	}
+	console.log("About to listen on port " + port);
+	this.server = this.app.listen(port);
+	this.app.use(gracefulExit.middleware(this.app));
+	return port;
+};
+
+CmonWorker.prototype.getServer = function() {
+	if (this.server) { return this.server; }
+	return false;
+};
+
+CmonWorker.prototype.handleMasterMessage = function(msg) {
+	switch(msg.cmd) {
+		case "CMON-CONF":
+			this.reload(msg);
+		break;
+		
+		case "CMON-MEMORYWARNING":
+			var memwatch = require('memwatch');
+			memwatch.gc();
+		break;
+		
+		case "CMON-SHUTDOWN":
+			// initiate graceful close of any connections to server
+			this.shutdown();
+		break;
+	}
+};
+
+// Configuration handling...
+
+CmonWorker.prototype.reload = function(conf) {
+	var conf = conf.configuration;
+	this.conf = conf;
+	if (this.conf.appPort > 0 && this.app) {
+		if (this.server) {
+			this.server.close();
+		}
+		//this.app.listen(this.conf.appPort);
+	}
+	if (this.statstimer) {
+		clearTimeout(this.statstimer);
+	}
+	if (this.conf && this.conf.stats && this.conf.statsInterval > 0) {
+		this.getStats(this.statscallback.bind(this));
+	}
+	this.emit('ready');
+};
+
+// Stats handling
+
+CmonWorker.prototype.statscallback = function() {
+	if (this.conf && this.conf.stats && this.conf.statsInterval > 0) {
+		this.statstimer = setTimeout(this.statsinit.bind(this), this.conf.statsInterval);
+	}
+};
+
+CmonWorker.prototype.statsinit = function() {
+	this.getStats(this.statscallback.bind(this));
+};
+
+CmonWorker.prototype.getStats = function(maincallback) {
+	var memory = process.memoryUsage();
+	var cpuusage = null;
+	
+	var isWin = /^win/.test(process.platform);
+	if (isWin) {
+		var cpu = require('windows-cpu');
+		cpu.findLoad(process.pid, function(error, result) {
+			if (error) {
+				
+			} else {
+				cpuusage = result.load;
+			}
+			//console.log(result);
+			this.sendMessageToMaster('CMON-WORKERSTATS', { memory: memory, cpu: cpuusage });
+			memory = null;
+			cpuusage = null;
+			if (maincallback) { maincallback(); }
+		}.bind(this));
+	};
+};
+
+var EventEmitter = require('events').EventEmitter;
+//util.inherits(CmonWorker, EventEmitter);
+var myclasses = [];
+
+myclasses.push(EventEmitter);
+for (var i = 0; i < myclasses.length; i++) {
+	var c = myclasses[i];
+	for (var fn in c.prototype) {
+		if (c.prototype.hasOwnProperty(fn)) {
+			CmonWorker.prototype[fn] = c.prototype[fn];
+		}
+	}
+}
+//console.log(EventEmitter.prototype);
+
+module.exports = CmonWorker;

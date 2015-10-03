@@ -1,0 +1,314 @@
+include head
+body
+	div#wrapper
+		nav.navbar-default.navbar-static-side(role="navigation")
+			div.sidebar-collapse
+				include topnav
+
+		div#page-wrapper.gray-bg
+			div.row.border-bottom
+				include topspace
+			div.row.wrapper.border-bottom.white-bg.page-heading
+				div.col-lg-10
+					h2 Manager configuration
+					ol.breadcrumb
+						li
+							a.active(href="/") Dashboard	
+						li.active
+							a.active(href="/configure")
+								strong Configuration		
+				div.col-lg-2
+			
+	
+			div.wrapper.wrapper-content.animated.fadeInRight
+				form.form-horizontal#managerConfig(action="javascript:")
+					div.row
+						div.col-lg-12
+							div.ibox
+								div.ibox-title
+									h5 Main configuration
+								div.ibox-content
+									div
+										div.row
+											label.col-lg-2.control-label Enable workers
+											div.col-lg-10
+												if locals.enableWorkers
+													input.js-switch#enableWorkers(type="checkbox",checked="checked")
+												else
+													input.js-switch#enableWorkers(type="checkbox")
+												div.m-b-sm.m-t
+													small Enable workers startup. 
+														strong Suggested value = ON
+										
+										div.row#workersNumberSlider
+											div.hr-line-dashed
+											label.col-lg-2.control-label Number of workers
+											div.col-lg-10
+												input#workersNumber(value="#{locals.workersNumber}")
+												div.m-b-sm.m-t
+													small Start this amount of workers. Based on server CPU Cores, 
+														strong suggested value = #{Math.max(locals.cpucount - 1)}
+										
+										
+										div.row
+											div.hr-line-dashed
+											label.col-lg-2.control-label Restart dead workers
+											div.col-lg-10
+												input.js-switch#restartDeadWorkers(type="checkbox")
+												div.m-b-sm.m-t
+													small Auto restart workers when they unexpectedly die. 
+														strong Suggested value = ON
+										
+
+										div.row
+											div.hr-line-dashed
+											label.col-lg-2.control-label Restart workers after time limit 
+											div.col-lg-10
+												if locals.restartAfterTimeLimit
+													input.js-switch#restartAfterTimeLimit(type="checkbox",checked="checked")
+												else
+													input.js-switch#restartAfterTimeLimit(type="checkbox")
+												div.m-b-sm.m-t
+													small Auto restart after certain time limit. 
+														strong Suggested value = ON
+														
+										div.row#workersMaxTimeLimitSlider
+											div.hr-line-dashed
+											label.col-lg-2.control-label Workers max lifetime
+											div.col-lg-10
+												input#workersTimeLimit(value="#{locals.workersTimeLimit}")
+												div.m-b-sm.m-t
+													small If "
+														i Restart workers after time limit
+														| " is ON, cluster manager will kill and restart workers after this time limit. 
+														strong Suggested value = 2 minutes. 
+														| The time limit will be randomized by +/- 15% 
+								
+										div.row
+											div.hr-line-dashed
+											label.col-lg-2.control-label Enable workers RAM management
+											div.col-lg-10
+												if locals.watchClustersMemory
+													input.js-switch#watchClustersMemory(type="checkbox",checked="checked")
+												else
+													input.js-switch#watchClustersMemory(type="checkbox")
+												div.m-b-sm.m-t
+													small Enables the manager to watch for clusters memory usage. 
+														strong Suggested value = ON
+														
+										div.row#workersRamLimitsContainer
+											div.hr-line-dashed
+											label.col-lg-2.control-label Workers RAM
+											div.col-lg-10
+												input#workersRamLimits(value="#{locals.workersRamWarnLimit};#{locals.workersRamKillLimit}")
+												div.m-b-sm.m-t
+													small Manager will warn clusters to reduce RAM usage 
+														b after first limit 
+														| is reached. Manager will kill worker when 
+														b second limit 
+														| is reached. 
+														br
+														strong Configure accordingly to the difficulty of your processes.
+										
+										div.row
+											div.hr-line-dashed
+											label.col-lg-2.control-label Enable basic shared session support
+											div.col-lg-10
+												input.js-switch#enableSharedSession(type="checkbox")
+												div.m-b-sm.m-t
+													small Enables a shared session store between workers. Enable this if you need it. Disable if unused.
+										
+										div.row
+											div.hr-line-dashed
+											label.col-lg-2.control-label Enable persistent stats
+											div.col-lg-10
+												input.js-switch#enablePersistentStatistics(type="checkbox")
+												div.m-b-sm.m-t
+													small Enable stats persistence. Stats are saved across Manager restarts.
+										
+										div.row#keepStatsForTime
+											div.hr-line-dashed
+											label.col-lg-2.control-label Keep stats for time
+											div.col-lg-10
+												input#statsKeepTime(value="")
+												div.m-b-sm.m-t
+													small How long to keep stats in memory. Older stats will be saved to disk (affects RAM usage)
+																							
+										div.row
+											div.hr-line-dashed
+												div.col-lg-4.col-lg-offset-2(style="padding-top: 10px; color: #676A6C")
+													//- button.btn.btn-white#clearValues(type="reset") Cancel
+													button.btn.btn-success#saveValues(type="submit") Save changes
+		
+	div.footer.fixed
+		div.pull-right Cluster Manager v. 0.1
+		div
+			strong Copyright 
+			| Reflect.it s.r.l. &copy; 2014-2015
+			
+	for script in locals.footScripts
+		script(src=script)
+		
+	script(type="text/javascript").
+		var enableWorkersSwitchElement = document.querySelector('#enableWorkers');
+		var enableWorkersSwitch = new Switchery(enableWorkersSwitchElement, { color: '#428bca' });
+		
+		enableWorkersSwitchElement.onchange = function() {
+			if (enableWorkersSwitchElement.checked == true) {
+				$('#workersNumberSlider').slideDown();
+			} else {
+				$('#workersNumberSlider').slideUp();
+			}
+		}
+		if (enableWorkersSwitchElement.checked !== true) {
+			$('#workersNumberSlider').slideUp();
+		}
+		
+		
+		elem = document.querySelector('#restartDeadWorkers');
+		var restartDeadWorkersSwitch = new Switchery(elem, { color: '#428bca' });
+		
+		var restartAfterTimeLimitSwitchElement = document.querySelector('#restartAfterTimeLimit');
+		var restartAfterTimeLimitSwitch = new Switchery(restartAfterTimeLimitSwitchElement, { color: '#428bca' });
+		
+		restartAfterTimeLimitSwitchElement.onchange = function() {
+			if (restartAfterTimeLimitSwitchElement.checked == true) {
+				$('#workersMaxTimeLimitSlider').slideDown();
+			} else {
+				$('#workersMaxTimeLimitSlider').slideUp();
+			}
+		}
+		
+		if (restartAfterTimeLimitSwitchElement.checked !== true) {
+			$('#workersMaxTimeLimitSlider').slideUp();
+		}
+		
+		var watchClustersMemorySwitchElement = document.querySelector('#watchClustersMemory');
+		var watchClustersMemorySwitch = new Switchery(watchClustersMemorySwitchElement, { color: '#428bca' });
+		
+		watchClustersMemorySwitchElement.onchange = function() {
+			if (watchClustersMemorySwitchElement.checked == true) {
+				$('#workersRamLimitsContainer').slideDown();
+				$('#yourElement').addClass('animated bounceOutLeft');
+			} else {
+				$('#workersRamLimitsContainer').slideUp();
+				//$('#workersRamLimitsContainer').addClass('animated rotateOut');
+			}
+		}
+		
+		if (watchClustersMemorySwitchElement.checked !== true) {
+			$('#workersRamLimitsContainer').slideUp();
+		}
+		
+		
+		elem = document.querySelector('#enableSharedSession');
+		var enableSharedSessionSwitch = new Switchery(elem, { color: '#428bca' });
+		
+		var enablePersistentStatisticsElement = document.querySelector('#enablePersistentStatistics');
+		var enablePersistentStatisticsSwitch = new Switchery(enablePersistentStatisticsElement, { color: '#428bca' });
+		
+		
+		
+		$(".dial").knob();
+		
+		$("#workersNumber").ionRangeSlider({
+			grid: true,
+			from: parseInt("#{locals.workersNumber}",10),
+			min: 1,
+			max: 20,
+			postfix: ' workers'
+		});
+		
+		$("#workersTimeLimit").ionRangeSlider({
+			grid: true,
+			from: parseInt("#{locals.workersTimeLimit}",10),
+			min: 0,
+			max: 600,
+			postfix: '',
+			prettify: function (seconds) {
+				if(true) {
+					var hours = Math.floor(seconds / 3600);
+					seconds = seconds - hours * 3600;
+				}
+				
+				var minutes = (Math.floor(seconds/60) < 10) ? "0" + Math.floor(seconds/60) : Math.floor(seconds/60);
+				var seconds = (seconds % 60 > 9) ? seconds % 60 : "0" + seconds % 60;
+				if(true) {
+					var timestring = hours+":"+minutes+":"+seconds;
+				} else {
+					var timestring = minutes+":"+seconds;
+				}
+				
+				return timestring
+			}
+		});
+		
+		$("#workersRamLimits").ionRangeSlider({
+			type: "double",
+			grid: true,
+			step: 1024,
+			min: 0,
+			max: 1 * 1024 * 1024 * 1024 * 2,
+			from: #{locals.workersRamWarnLimit},
+			to: #{locals.workersRamKillLimit},
+			grid: true,
+			force_edges: true,
+			prettify: function(val) {
+				var sizes = ['B', 'K', 'M', 'G', 'T'];
+				if (val == 0) return '0 Byte';
+				var i = parseInt(Math.floor(Math.log(val) / Math.log(1024)));
+				return (Math.round(val / Math.pow(1024, i)*100)/100).toFixed(1) + '' + sizes[i];
+			}
+		});
+		
+		$("#statsKeepTime").ionRangeSlider({
+			grid: true,
+			from: parseInt("#{locals.statsKeepTime}",10),
+			min: 60,
+			max: 86400,
+			postfix: '',
+			prettify: function (seconds) {
+				if(true) {
+					var hours = Math.floor(seconds / 3600);
+					seconds = seconds - hours * 3600;
+				}
+				
+				var minutes = (Math.floor(seconds/60) < 10) ? "0" + Math.floor(seconds/60) : Math.floor(seconds/60);
+				var seconds = (seconds % 60 > 9) ? seconds % 60 : "0" + seconds % 60;
+				if(true) {
+					var timestring = hours+":"+minutes+":"+seconds;
+				} else {
+					var timestring = minutes+":"+seconds;
+				}
+				
+				return timestring
+			}
+		});
+		
+		$("#saveValues").click(function(val) {
+			var conf = {};
+			$("#managerConfig input").each(function(index, el) {
+				//console.log(arguments); 
+				if ($(el).attr('type') == 'checkbox') {
+					//console.log($(el).attr('id'),$(el).prop("checked"));
+					conf[$(el).attr('id')] = $(el).prop("checked");
+				} else {
+					conf[$(el).attr('id')] = $(el).val();
+				}
+			});
+			$.ajax({
+				url: "/configure.json",
+				cache: false,
+				method: "post",
+				data: JSON.stringify({conf: conf}),
+				contentType: 'application/json',
+				success: function(data) {
+					console.log("Success:", data);
+				},
+				error: function(data) {
+					console.log("Error, ", data);
+				}
+			});
+			console.log(conf);
+			
+		});

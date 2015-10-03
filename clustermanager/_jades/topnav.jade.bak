@@ -1,0 +1,25 @@
+ul#side-menu.nav
+	li.nav-header
+		div.dropdown.profile-element
+			span
+				img.img-circle(src="img/profile.png",style="width: 48px; height:48px")
+			a.dropdown-toggle(data-toggle="dropdown")
+				span.clear
+					span.block.m-t-xs
+						strong.font-bold Admin
+						br
+						| Profile
+						b.caret
+			ul.dropdown-menu.animated.fadeInRight.m-t-xs
+				li
+					a(href="/profile") Welcome
+				li.divider
+				li
+					a(href="/login") Logout
+		div.logo-element TMan
+	
+	for link in locals.mainLinks
+		li 
+			a(href=link.url)
+				i.fa(class="#{link.icon}")
+				span.nav-label #{link.name}

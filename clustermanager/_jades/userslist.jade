@@ -1,0 +1,57 @@
+include head
+body.fixed-sidebar
+	div#wrapper
+		nav.navbar-default.navbar-static-side(role="navigation")
+			div.sidebar-collapse
+				include topnav
+
+		div#page-wrapper.gray-bg
+			div.row.border-bottom
+				include topspace
+			
+			div.row.wrapper.border-bottom.white-bg.page-heading
+				div.col-lg-9
+					h2 Users list
+					ol.breadcrumb
+						li Administration
+						li 
+							a.active(href="/users") 
+								strong Users list
+			
+			div.wrapper.wrapper-content.animated.fadeInRight
+				div.row
+					div.col-lg-12
+						div.ibox.float-e-margins
+							for operator in locals.data.operators
+								div.ibox-title
+									h5 Operator: 
+										u #{operator.name}
+								
+								div.ibox-content
+									table.table.table-striped
+										thead
+											tr
+												th
+												th Username
+												th Name
+												th Operator
+												th Last login
+												th Role
+												th Action
+										tbody
+										
+											for user in operator.users
+												tr 
+													td
+														input.i-checks(type="checkbox",name="input[]")
+													td #{user.username}
+													td #{user.fullName}
+													td #{user.operator}
+													td #{user.lastLogin}
+													td #{user.role}
+													td 
+					
+				
+				
+	for script in locals.footScripts
+		script(src=script)

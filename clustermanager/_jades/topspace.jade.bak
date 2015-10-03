@@ -1,0 +1,30 @@
+nav.navbar.navbar-fixed-side(role="navigation",style="margin-bottom:0")
+	div.navbar-header
+		a.navbar-minimalize.minimalize-styl-2.btn.btn-info(href="#")
+			i.fa.fa-bars
+	ul.nav.navbar-top-links.navbar-right
+		li
+			span.m-r-sm.text-muted.welcome-message Welcome #{locals.session.currentUser.fullName} (#{locals.session.currentOperator.name})
+		li.dropdown
+			a.dropdown-toggle.count-info(data-toggle="dropdown",href="#")
+				i.fa.fa-envelope
+				span.label.label-warning #{locals.alertCount}
+
+			ul.dropdown-menu.dropdown-messages
+				if locals.alertCount > 0
+					for alert in locals.alerts
+						li
+							div.dropdown-messages-box
+								a.pull-left(href="/alerts")
+									img.img-circle(src=alert.image,alt="image")
+								div.media-body
+									small.pull-right #{alert.time}
+									strong #{alert.title}
+									br
+									| #{alert.text}
+						li.divider(style="clear:both")
+				li
+					div.text-center.link-block
+						a(href="/alerts")
+							i.fa.fa-envelope
+							strong Read all messages

@@ -1,0 +1,283 @@
+include head
+body
+	div#wrapper
+		nav.navbar-default.navbar-static-side(role="navigation")
+			div.sidebar-collapse
+				include topnav
+
+		div#page-wrapper.gray-bg
+			div.row.border-bottom
+				include topspace			
+			include admin-dashboard
+			
+	
+		
+	for script in locals.footScripts
+		script(src=script)
+		
+	script(type="text/javascript").
+		var serverTimeOffset = parseInt("-60", 10);
+		var localTimeOffset = (new Date()).getTimezoneOffset() * 60 * 1000 * -1;
+		//localTimeOffset = 0;
+		//console.log(localTimeOffset * 2);
+		var osmemory = parseInt("25567965184",10);
+		var interval = 2000;
+		var flotSeriesConf = {
+			lines: {
+				show: false,
+				fill: false
+			},
+			splines: {
+				show: true,
+				tension: 0.4,
+				lineWidth: 2,
+				fill: 0
+			},
+			points: {
+				radius: 2,
+				show: false
+			},
+			shadowSize: 2
+		};
+		var flotGridConf = {
+			hoverable: true,
+			clickable: true,
+			tickColor: "#d5d5d5",
+			borderWidth: 1,
+			color: '#d5d5d5'
+		};
+		var flotColorsConf = ["#FF8040", "#1a7bb9", "#000000"];
+		var getPercentAxeWithColorAndAlign = function(color,align) {
+			return {
+				min: 0,
+				color: color || '#000000',
+				position: align || 'right',
+				tickFormatter: function(val, axis) {
+					if (val < 0) { return ''; }
+					return (Math.round(val).toFixed(2) + "%");
+				}
+			};
+		};
+		var getFullPercentAxeWithColorAndAlign = function(color,align) {
+			return {
+				min: 0,
+				max: 100,
+				color: color || '#000000',
+				position: align || 'right',
+				tickFormatter: function(val, axis) {
+					if (val < 0) { return ''; }
+					return (Math.round(val).toFixed(2) + "%");
+				}
+			};
+		};
+		var getBytesAxeWithColorAndAlign = function(color, align) {
+			return {
+				// align if we are to the right
+				alignTicksWithAxis: null,
+				position: 'right',
+				color: color || '#000000',
+				tickFormatter: function(val, axis) {
+					var sizes = ['B', 'K', 'M', 'G', 'T'];
+					if (val == 0) return '';
+					var i = parseInt(Math.floor(Math.log(val) / Math.log(1024)));
+					return (Math.round(val / Math.pow(1024, i)*100)/100).toFixed(1) + '' + sizes[i];
+				}
+			};
+		};
+		var refresh = function() {
+			$.ajax({
+				url: "/getfullstats.json/120",
+				cache: false,
+				success: function(data) {
+					graphdata = {};
+					graphdata.manager = {
+						cpus: [],
+						usedmemory: [],
+						freememory: [],
+						usedmemoryabs: [],
+						freememoryabs: []
+					};
+					graphdata.workers = {};
+					graphdata.pids = [];
+		
+					if (data && data.ticks && data.ticks.length > 0) {
+						var pids = [];
+						var ticks = data.ticks; // + (localTimeOffset * 1000 * -1);
+						for (var i = 0; i < ticks.length; i++) {
+							var tick = ticks[i];
+							var workers = data.values[tick].workers;
+							var manager = data.values[tick].manager;
+							graphdata.manager.cpus.push([tick + localTimeOffset, manager.cpu]);
+							graphdata.manager.usedmemory.push([tick + localTimeOffset, manager.memory.rss / osmemory * 100]);
+							graphdata.manager.usedmemoryabs.push([tick + localTimeOffset, manager.memory.rss]);
+							graphdata.manager.freememory.push([tick + localTimeOffset, manager.freeMemory / osmemory * 100]);
+							graphdata.manager.freememoryabs.push([tick + localTimeOffset, manager.freeMemory]);
+							
+							
+							for (var pid in workers) {
+								if (workers.hasOwnProperty(pid)) {
+									if (graphdata.pids.indexOf(pid) < 0) {
+										graphdata.pids.push(pid);
+										graphdata.workers[pid] = {memory: { data: []}, cpu: { data: [] }};
+									}
+									graphdata.workers[pid].memory.data.push([tick + localTimeOffset, workers[pid].memory.rss]);
+									graphdata.workers[pid].cpu.data.push([tick + localTimeOffset, workers[pid].cpu]);
+								}
+								
+							}
+						}
+						
+						console.log(graphdata.workers);
+		
+						//Make plot
+						$.plot("#flot-dashboard-manager-cpu-usage", [
+						{ data: graphdata.manager.cpus, label: "Manager CPU usage", yaxis: 1 }
+						], {
+							series: flotSeriesConf,
+							grid: flotGridConf,
+							colors: flotColorsConf,
+							xaxes: [ { mode: "time" } ],
+							yaxes: [
+							getFullPercentAxeWithColorAndAlign(flotColorsConf[0], 'right'),
+							getBytesAxeWithColorAndAlign(flotColorsConf[1], 'right')
+							],
+							legend: { position: "nw" }
+						});
+		
+						//Make plot
+						$.plot("#flot-dashboard-manager-ram-usage", [
+						{ data: graphdata.manager.usedmemory, label: "Used memory", yaxis: 1 },
+						{ data: graphdata.manager.freememory, label: "System free memory", yaxis: 2 }
+						], {
+							series: flotSeriesConf,
+							grid: flotGridConf,
+							colors: flotColorsConf,
+							xaxes: [ { mode: "time" } ],
+							yaxes: [
+							getFullPercentAxeWithColorAndAlign(flotColorsConf[0], 'right'),
+							getFullPercentAxeWithColorAndAlign(flotColorsConf[1], 'right')
+							],
+							legend: { position: "nw" }
+						});
+		
+						//Make plot
+						$.plot("#flot-dashboard-manager-ram-abs-usage", [
+						{ data: graphdata.manager.usedmemoryabs, label: "Used memory", yaxis: 1 },
+						{ data: graphdata.manager.freememoryabs, label: "System free memory", yaxis: 2 }
+						], {
+							series: flotSeriesConf,
+							grid: flotGridConf,
+							colors: flotColorsConf,
+							xaxes: [ { mode: "time" } ],
+							yaxes: [
+							getBytesAxeWithColorAndAlign(flotColorsConf[0], 'right'),
+							getBytesAxeWithColorAndAlign(flotColorsConf[1], 'right')
+							],
+							legend: { position: "nw" }
+						});
+						
+						var newData = [];
+						for (var pid in graphdata.workers) {
+							if (graphdata.workers.hasOwnProperty(pid)) {
+								newData.push({
+									data: graphdata.workers[pid].cpu.data, 
+									label: "Worker pid: " + pid
+								});
+							}
+						}
+						$.plot(
+							"#flot-dashboard-workers-cpu-usage", 
+							newData, 
+							{
+								series: flotSeriesConf,
+								grid: flotGridConf,
+								colors: flotColorsConf,
+								xaxes: [ { mode: "time" } ],
+								yaxes: [
+									getFullPercentAxeWithColorAndAlign(flotColorsConf[0], 'right')
+								],
+								legend: { position: "nw" }
+							}
+						);
+						
+						newData = [];
+						for (var pid in graphdata.workers) {
+							if (graphdata.workers.hasOwnProperty(pid)) {
+								newData.push({
+									data: graphdata.workers[pid].memory.data, 
+									label: "Worker pid: " + pid
+								});
+							}
+						}
+						$.plot(
+							"#flot-dashboard-workers-memory-usage", 
+							newData, 
+							{
+								series: flotSeriesConf,
+								grid: flotGridConf,
+								colors: flotColorsConf,
+								xaxes: [ { mode: "time" } ],
+								yaxes: [
+									getBytesAxeWithColorAndAlign(flotColorsConf[0], 'right')
+								],
+								legend: { position: "nw" }
+							}
+						);
+		
+		
+					} else {
+						if (data.indexOf('<!DOCTYPE html>') === 0) {
+							document.location.href = "/";
+						}
+					}
+					setTimeout(function() {
+						refresh();
+					}, interval);
+				},
+				error: function() {
+					console.log("Error while loading data");
+					setTimeout(function() {
+						refresh();
+					}, interval);
+				}
+			});
+		};
+		refresh();
+
+
+	script(type='text/javascript').
+		var d1 = [[1262304000000, 6], [1264982400000, 3057], [1267401600000, 20434], [1270080000000, 31982], [1272672000000, 26602], [1275350400000, 27826], [1277942400000, 24302], [1280620800000, 24237], [1283299200000, 21004], [1285891200000, 12144], [1288569600000, 10577], [1291161600000, 10295]];
+		var d2 = [[1262304000000, 5], [1264982400000, 200], [1267401600000, 1605], [1270080000000, 6129], [1272672000000, 11643], [1275350400000, 19055], [1277942400000, 30062], [1280620800000, 39197], [1283299200000, 37000], [1285891200000, 27000], [1288569600000, 21000], [1291161600000, 17000]];
+		var data3 = [
+			{ label: "Data 1", data: d1, color: '#19a0a1'},
+			{ label: "Data 2", data: d2, color: '#1BABAB' }
+		];
+		$.plot($("#flot-chart3"), data3, {
+			xaxis: {
+				tickDecimals: 0
+			},
+			series: {
+				lines: {
+					show: true,
+					fill: true,
+					fillColor: {
+						colors: [{
+							opacity: 1
+						}, {
+							opacity: .5
+						}]
+					},
+				},
+				points: {
+					width: 0.1,
+					show: false
+				},
+			},
+			grid: {
+				show: false,
+				borderWidth: 0
+			},
+			legend: {
+				show: false,
+			}
+		});

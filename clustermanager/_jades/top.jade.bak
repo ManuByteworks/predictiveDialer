@@ -1,0 +1,11 @@
+include head
+body.skin-1
+	div#wrapper
+		nav.navbar-default.navbar-static-side(role="navigation")
+			div.sidebar-collapse
+				include topnav
+	
+	
+	for script in locals.footScripts
+		script(src=script)
+	

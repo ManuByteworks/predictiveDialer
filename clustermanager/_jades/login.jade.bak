@@ -1,0 +1,25 @@
+include head
+body.skin-1.gray-bg
+	div.middle-box.text-center.loginscreen.animated.fadeInDown
+		div
+			div
+				h1.logo-name #{locals.appShortName}
+			h3 Welcome to 
+				br
+				|#{locals.appName}
+			p Login in. To see it in action.
+			form.m-t(role="form",action="/login",method="post")
+				div.form-group
+					input.form-control(type="text",placeholder="Username",name="username",required="")
+				div.form-group
+					input.form-control(type="password",placeholder="Password",name="password",required="")
+				div.form-group
+					select.form-control(placeholder="Language",name="language")
+						for lang in locals.languages
+							option(value=lang.code) #{lang.name}
+				if locals.loginError
+					div.alert.alert-danger #{locals.loginError}
+				button(type="submit").btn.block.full-width.m-b.btn-info Login
+	
+	for script in locals.footScripts
+		script(src=script)

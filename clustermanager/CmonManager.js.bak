@@ -1,0 +1,38 @@
+var util = require('util');
+var cluster = require('cluster');
+var util = require('util');
+var os = require('os');
+var file = fs = require('fs');
+var nconf = require('nconf');
+
+var CmonManager = function() {};
+
+var CmonManagerInit = require("./CmonManager_init");
+var CmonManagerStartup = require("./CmonManager_startup");
+var CmonManagerHelpers = require("./CmonManager_helpers");
+var CmonManagerStats = require("./CmonManager_stats");
+var CmonManagerWorkersHelpers = require("./CmonManager_workersHelpers");
+
+var myclasses = [];
+
+myclasses.push(CmonManagerInit);
+myclasses.push(CmonManagerStartup);
+myclasses.push(CmonManagerHelpers);
+myclasses.push(CmonManagerStats);
+myclasses.push(CmonManagerWorkersHelpers);
+
+for (var i = 0; i < myclasses.length; i++) {
+	var c = myclasses[i];
+	for (var fn in c.prototype) {
+		if (c.prototype.hasOwnProperty(fn)) {
+			CmonManager.prototype[fn] = c.prototype[fn];
+		}
+	}
+}
+
+myclasses = null;
+
+var EventEmitter = require('events').EventEmitter;
+util.inherits(CmonManager, EventEmitter);
+
+module.exports = CmonManager;

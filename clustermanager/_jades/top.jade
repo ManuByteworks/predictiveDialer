@@ -1,0 +1,16 @@
+include head
+body.skin-1
+	div#wrapper
+		nav.navbar-default.navbar-static-top(role="navigation",style="margin-bottom:0")
+			div.sidebar-collapse
+				include topnav
+
+	div#page-wrapper.gray-bg
+		div.row.border-bottom
+			include topspace
+
+
+	
+	for script in locals.footScripts
+		script(src=script)
+	

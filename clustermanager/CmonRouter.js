@@ -1,0 +1,346 @@
+var express = require('express');
+var bodyParser = require('body-parser');
+var jsonParser = bodyParser.json({ type: 'application/json' });
+var urlencodedParser = bodyParser.urlencoded({ extended: false });
+var path = require('path');
+var util = require('util');
+var fs = require('fs');
+var jade = require('jade');
+var moment = require('moment');
+
+module.exports = function(manager) {
+	var router = express.Router();
+
+	router.use(function(req, res, next) {
+		if (req.session.authorized !== true) {
+			if (!manager.allowedUrls) {
+				manager.allowedUrls = [
+				'/user/postupdate',
+				'/js/jquery/jquery-2.1.1.min.js',
+				'/css/custom.css',
+				'/css/bootstrap.min.css',
+				'/font-awesome/css/font-awesome.css',
+				'/css/animate.css',
+				'/css/style.css',
+				'/css/custom.css',
+				'/css/plugins/morris/morris-0.4.3.min.css',
+				'/js/plugins/gritter/jquery.gritter.css',
+				'/js/plugins/metisMenu/jquery.metisMenu.js',
+				'/js/plugins/slimscroll/jquery.slimscroll.min.js',
+				'/js/plugins/flot/jquery.flot.js',
+				'/js/plugins/flot/jquery.flot.resize.js',
+				'/js/demo/peity-demo.js',
+				'/js/plugins/pace/pace.min.js',
+				'/js/plugins/jquery-ui/jquery-ui.min.js',
+				'/js/plugins/gritter/jquery.gritter.min.js',
+				'/js/plugins/easypiechart/jquery.easypiechart.js',
+				'/js/plugins/sparkline/jquery.sparkline.min.js',
+				'/js/plugins/chartJs/Chart.min.js',
+				'/js/jquery-1.10.2.js',
+				'/js/bootstrap.min.js',
+				'/js/plugins/metisMenu/jquery.metisMenu.js',
+				'/js/plugins/flot/jquery.flot.tooltip.min.js',
+				'/js/plugins/flot/jquery.flot.spline.js',
+				'/js/plugins/peity/jquery.peity.min.js',
+				'/js/plugins/flot/jquery.flot.pie.js',
+				'/favicon.ico',
+				'/css/plugins/iCheck/custom.css',
+				'/js/plugins/iCheck/icheck.min.js',
+				'/css/plugins/switchery/switchery.css',
+				'/js/plugins/switchery/switchery.js',
+				'/js/plugins/jsKnob/jquery.knob.js',
+				'/js/plugins/ionRangeSlider/ion.rangeSlider.min.js',
+				'/css/plugins/ionRangeSlider/ion.rangeSlider.css',
+				'/css/plugins/ionRangeSlider/ion.rangeSlider.skinFlat.css',
+				'/css/plugins/ionRangeSlider/ion.rangeSlider.skinHTML5.css',
+				'/js/inspinia.js',
+				'/login'];
+			}
+	
+	
+			if(manager.allowedUrls.indexOf(req.url) > -1) {
+				next();
+			} else {
+				res.redirect(302, '/login');
+			}
+		} else {
+			next();
+		}
+	});
+	
+	
+	router.use(express.static('clustermanager/_static'));
+	
+	var getAllReplacements = function(req) {
+		var reps = {};
+		var confValues = manager.nconf.get();
+		for (var property in confValues) {
+			if (confValues.hasOwnProperty(property)) {
+				// do stuff
+				var tmp = property;
+				reps[tmp] = confValues[property];
+			}
+		}
+		var tmp = '';
+		if (manager.alerts.timeindexes.length > 0) {
+			/*
+			for (var i = manager.alerts.timeindexes.length - 1; i > -1 && i > manager.alerts.length - 6; i--) {
+				tmp += manager.alerts[i].toLi();
+			}
+			*/
+		}
+		reps['alertsAsLi'] = tmp;
+		
+		reps.utils = [];
+		reps.utils.bytesconverter = function(bytes) {
+		   var sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+		   if (bytes == 0) return '0 Byte';
+		   var i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)));
+		   return (Math.round(bytes / Math.pow(1024, i)*100)/100).toFixed(2) + ' ' + sizes[i];
+		};
+		reps.utils.truncate = function(n,len){
+			return n.length>len ? n.substr(0,len-1)+'&hellip;' : n;
+		};
+		
+		reps.utils.moment = moment;
+		
+		reps['timezoneoffset'] = (new Date()).getTimezoneOffset();
+		reps['managerStartup'] = manager.startTime;
+		reps['managerMemoryUsage'] = JSON.stringify(process.memoryUsage());
+		reps['runningWorkers'] = manager.runningWorkers;
+		reps['cpucount'] = manager.cpucount;
+		reps['cpumodel'] = manager.cpumodel;
+		reps['ostype'] = manager.ostype;
+		reps['osrelease'] = manager.osrelease;
+		reps['osarch'] = manager.osarch;
+		reps['hostname'] = manager.hostname;
+		reps['osmemory'] = manager.osmemory;
+		reps['interfaces'] = manager.interfaces;
+		reps['osuptime'] = manager.uptime;
+		reps['cpuavgspeed'] = manager.cpuavgspeed;
+	
+		reps['footScripts'] = [
+		'js/jquery-1.10.2.js',
+		'js/bootstrap.min.js',
+		'js/plugins/metisMenu/jquery.metisMenu.js',
+		'js/plugins/slimscroll/jquery.slimscroll.min.js',
+		'js/plugins/flot/jquery.flot.js',
+		'js/plugins/flot/jquery.flot.tooltip.min.js',
+		'js/plugins/flot/jquery.flot.spline.js',
+		'js/plugins/flot/jquery.flot.resize.js',
+		'js/plugins/flot/jquery.flot.pie.js',
+		'js/plugins/peity/jquery.peity.min.js',
+		'js/demo/peity-demo.js',
+		'js/plugins/pace/pace.min.js',
+		'js/plugins/jquery-ui/jquery-ui.min.js',
+		'js/plugins/gritter/jquery.gritter.min.js',
+		'js/plugins/easypiechart/jquery.easypiechart.js',
+		'js/plugins/sparkline/jquery.sparkline.min.js',
+		'js/plugins/chartJs/Chart.min.js',
+		'/js/plugins/iCheck/icheck.min.js',
+		'js/plugins/switchery/switchery.js',
+		'js/plugins/jsKnob/jquery.knob.js',
+		'js/plugins/ionRangeSlider/ion.rangeSlider.min.js',
+		'js/inspinia.js',
+		];
+	
+		reps['headStyles'] = [
+		'css/bootstrap.min.css',
+		'font-awesome/css/font-awesome.css',
+		'css/plugins/morris/morris-0.4.3.min.css',
+		'js/plugins/gritter/jquery.gritter.css',
+		'/css/plugins/switchery/switchery.css',
+		'css/plugins/iCheck/custom.css',
+		'css/plugins/ionRangeSlider/ion.rangeSlider.css',
+		'css/plugins/ionRangeSlider/ion.rangeSlider.skinHTML5.css',
+		'css/animate.css',
+		'css/style.css',
+		'css/custom.css'
+		];
+	
+		reps.session = req.session;
+	
+		reps.mainLinks = [];
+		if (req.session.authorized == true) {
+			reps.mainLinks.push({ "url" : "/dashboard", "name" : "Dashboard", "icon" : "fa-th-large" });
+			reps.mainLinks.push({ "url" : "/configure", "name" : "Configure", "icon" : "fa-check-square-o" });
+			reps.mainLinks.push({ "url" : "/workers", "name" : "Workers", "icon" : "fa-cogs" });
+			reps.mainLinks.push({ "url" : "/managerstats", "name" : "Manager Stats", "icon" : "fa-bar-chart" });
+			reps.mainLinks.push({ "url" : "/clusterstats", "name" : "Web Stats", "icon" : "fa-line-chart" });
+		}
+	
+		reps.alertCount = 5;
+		reps.alerts = [];
+	
+		return reps;
+	};
+	
+	router.get('/', function(req, res, next) {
+		res.redirect(302, '/dashboard');
+	});
+	
+	router.get('/dashboard', function(req, res, next) {
+		
+		var fn = jade.compileFile('clustermanager/_jades/dashboard.jade', { pretty: true });
+		var replacements = getAllReplacements(req);
+		var html = fn(replacements);
+		//console.log({locals: replacements});
+		replacements = null;
+		fn = null;
+		res.send(html);
+	});
+	
+	router.get('/configure', function(req, res, next) {
+	
+		var fn = jade.compileFile('clustermanager/_jades/configure.jade', { pretty: true });
+		var replacements = getAllReplacements(req);
+		var html = fn(replacements);
+		replacements = null;
+		fn = null;
+		res.send(html);
+	});
+	
+	router.post('/configure.json', jsonParser, function(req, res, next) {
+		res.setHeader('Content-Type', 'application/json');
+		for (var prop in req.body.conf) {
+			//console.log(prop,req.body.conf[prop]);
+		}
+		if (req.body.conf.workersRamLimits) {
+			req.body.conf.workersRamWarnLimit = req.body.conf.workersRamLimits.split(";")[0];
+			req.body.conf.workersRamKillLimit = req.body.conf.workersRamLimits.split(";")[1];
+			delete req.body.conf.workersRamLimits;
+		}
+		
+		for (var prop in req.body.conf) {
+			//console.log(prop,req.body.conf[prop]);
+			manager.nconf.set(prop, req.body.conf[prop]);
+		}
+		
+		manager.nconf.save(function(error) {
+			if (error) {
+				console.log("Error while saving new configuration file");
+				console.log(error);
+			} else {
+				manager.reload();
+			}
+			res.send({result: true});
+		});
+				
+	});
+	
+	router.get('/getfullalerts.html/:seconds?', function(req, res, next) {
+		var seconds = req.params.seconds;
+		seconds = parseInt(seconds);
+		if (!seconds || seconds < 1) {
+			seconds = 240;
+		}
+		var limit = new Date().getTime();
+		limit = limit - (seconds * 1000);
+		var retval = "";
+		//console.log("Total stats = " + manager.managerStats.timeindexes.length);
+		for (var i = manager.alerts.timeindexes.length - 1; i >= 0; i--) {
+			if (limit <= manager.alerts.timeindexes[i]) {
+				//console.log("OK " + limit + " " + manager.managerStats.timeindexes[i]);
+				//console.log(manager.alerts[manager.alerts.timeindexes[i]]);
+				for (var y = 0; y < manager.alerts[manager.alerts.timeindexes[i]].length; y++) {
+					retval += manager.alerts[manager.alerts.timeindexes[i]][y].toLi();
+				}
+			} else {
+				//console.log("NOK " + limit + " " + manager.managerStats.timeindexes[i]);
+				break;
+			}
+		}
+		res.setHeader('Content-Type', 'text/html');
+		res.send(retval);
+	});
+	
+	router.get('/getfullalerts.json/:seconds?', function(req, res, next) {
+		var seconds = req.params.seconds;
+		seconds = parseInt(seconds);
+		if (!seconds || seconds < 1) {
+			seconds = 240;
+		}
+		var limit = new Date().getTime();
+		limit = limit - (seconds * 1000);
+		var retval = {ticks: [], values: {}};
+		//console.log("Total stats = " + manager.managerStats.timeindexes.length);
+		for (var i = manager.alerts.timeindexes.length - 1; i >= 0; i--) {
+			if (limit <= manager.alerts.timeindexes[i]) {
+				//console.log("OK " + limit + " " + manager.managerStats.timeindexes[i]);
+				retval.ticks.push(manager.alerts.timeindexes[i]);
+				retval.values[manager.alerts.timeindexes[i]] = manager.alerts[manager.alerts.timeindexes[i]];
+			} else {
+				//console.log("NOK " + limit + " " + manager.managerStats.timeindexes[i]);
+				break;
+			}
+		}
+		res.setHeader('Content-Type', 'application/json');
+		res.send(retval);
+	});
+	
+	router.get('/getfullstats.json/:seconds?', function(req, res, next) {
+		var seconds = req.params.seconds;
+		seconds = parseInt(seconds);
+		if (!seconds || seconds < 1) {
+			seconds = 240;
+		}
+		var limit = new Date().getTime();
+		limit = limit - (seconds * 1000);
+		var retval = {ticks: [], values: {}};
+		//console.log("Total stats = " + manager.managerStats.timeindexes.length);
+		for (var i = manager.managerStats.timeindexes.length - 1; i >= 0; i--) {
+			if (limit <= manager.managerStats.timeindexes[i]) {
+				//console.log("OK " + limit + " " + manager.managerStats.timeindexes[i]);
+				retval.ticks.push(manager.managerStats.timeindexes[i]);
+				retval.values[manager.managerStats.timeindexes[i]] = manager.managerStats[manager.managerStats.timeindexes[i]];
+			} else {
+				//console.log("NOK " + limit + " " + manager.managerStats.timeindexes[i]);
+				break;
+			}
+		}
+		res.setHeader('Content-Type', 'application/json');
+		res.send(retval);
+	});
+	
+	router.get('/logout', function(req, res, next) {
+		req.session.authorized = false;
+		res.redirect(302, "/");
+	});
+	
+	router.get('/login', function(req, res, next) {
+		//req.session.authorized = false;
+		req.session.authorized = false;
+		var fn = jade.compileFile('clustermanager/_jades/login.jade', { pretty: true });
+		var replacements = getAllReplacements(req);
+		var html = fn(replacements);
+		replacements = null;
+		fn = null;
+		res.send(html);
+	});
+	
+	router.post('/login', urlencodedParser, function(req, res, next) {
+		var username = req.body.username;
+		var password = req.body.password;
+		//console.log(manager.nconf.get());
+		if (username === manager.nconf.get('manUsername') || password === manager.nconf.get('manPassword')) {
+	
+			req.session.authorized = true;
+			res.redirect(302, '/');
+		} else {
+			var fn = jade.compileFile('clustermanager/_jades/login.jade', { pretty: true });
+			var replacements = getAllReplacements(req);
+			replacements.loginError = "Sorry, no valid username or password.";
+			var html = fn(replacements);
+			replacements = null;
+			fn = null;
+			res.send(html);
+		}
+	
+	
+	
+	
+	});
+
+
+	return router;
+};
