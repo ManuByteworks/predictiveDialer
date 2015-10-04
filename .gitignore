@@ -30,6 +30,7 @@ node_modules
 
 #ClusterManager logs
 clustermanager/_stats/
+clustermanager/_stats
 
 #Application logs
 logs/
