@@ -113,10 +113,9 @@ myClass.prototype.workerDied = function(worker, code, signal) {
 	}
 	var idx = this.findWorkerIndexByPid(worker.process.pid);
 	if (idx > -1) {
-		console.log("Removing IDX = " + idx);
-		console.log("Current workers length = " + this.workers.length);
+		this.logger.info("CMonManager","Removing IDX = " + idx);
 		this.workers.splice(idx,1);
-		console.log("Current workers length = " + this.workers.length);
+		this.logger.info("CMonManager","Current workers length = " + this.workers.length);
 	}
 	
 	if (w.autorestart) {

@@ -28,9 +28,20 @@ CmonWorker.prototype.sendMessageToMaster = function(cmd, msg) {
 
 CmonWorker.prototype.getApp = function() {
 	if (this.app) { return this.app; }
-	this.app = require('express')();
+	this.express = this.getExpress();
+	this.app = this.express();
+	this.server = require('http').Server(this.app);
+	this.app.io = require('socket.io')(this.server);
 	return this.app;
+	
 };
+
+CmonWorker.prototype.getExpress = function() {
+	if (this.express) { return this.express; }
+	this.express = require('express');
+	return this.express;
+};
+
 
 CmonWorker.prototype.listen = function(port) {
 	if (!port) {
@@ -39,10 +50,12 @@ CmonWorker.prototype.listen = function(port) {
 	if (port < 1) { 
 		return false; 
 	}
-	this.server = this.app.listen(port);
+	//this.server = this.app.listen(port);
+	this.server.listen(port);
 	this.app.use(gracefulExit.middleware(this.app));
 	return port;
 };
+
 
 CmonWorker.prototype.getServer = function() {
 	if (this.server) { return this.server; }

@@ -1,0 +1,24 @@
+{
+  "enableWorkers": true,
+  "manUsername": "manu",
+  "manPassword": "manuxio",
+  "manPort": 4001,
+  "workersNumber": "2",
+  "restartDeadWorkers": true,
+  "restartAfterTimeLimit": false,
+  "workersTimeLimit": "999",
+  "watchClustersMemory": false,
+  "enableSharedSession": false,
+  "enablePersistentStatistics": false,
+  "statsKeepTime": "21512",
+  "workersRamWarnLimit": "2147483648",
+  "workersRamKillLimit": "2147483648",
+  "mongoHost": "localhost",
+  "mongoDbname": "dialer",
+  "mongoPort": "27017",
+  "watchFiles": [
+    "../clients.js",
+    "../routes/users.js",
+    "../libs"
+  ]
+}

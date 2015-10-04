@@ -32,10 +32,10 @@ myClass.prototype.startup = function() {
 	app.use('/user/', userrouting);
 	
 	app.listen(this.nconf.get('manPort'));
-	
-	console.log(('Manager interface started on port: ' + this.nconf.get('manPort') + ' and pid: ' + process.pid).green);
+	this.logger.info('CMonManager','Manager interface started on port: ' + this.nconf.get('manPort') + ' and pid: ' + process.pid);
+
 	this.addEvent('system','Startup','Cmon Manager startup');
-	//cluster.on('message', this.workerMessage.bind(this));
+
 	cluster.on('exit', this.workerDied.bind(this));
 	if (this.nconf.get('enableWorkers')) {
 		for (var i = 0; i < parseInt(this.nconf.get('workersNumber'),10); i++) {
@@ -44,14 +44,18 @@ myClass.prototype.startup = function() {
 		}
 	}
 	//console.log("Watch Files", this.nconf.get('watchFiles'));
+	//
 	if (this.nconf.get('watchFiles') && this.nconf.get('watchFiles').length > 0) {
 		for (var i = 0; i < this.nconf.get('watchFiles').length; i++) {
 			var f = __dirname + "/" + this.nconf.get('watchFiles')[i];
-			file.watchFile(f, function (curr, prev) {
-			  for (var y = 0; y < this.workers.length; y++) {
-			  	this.restartWorker(this.workers[y].pid);
-				}
-			}.bind(this));
+			if (fs.existsSync(f)) {
+				this.logger.verbose('CMonManager','Watching file/directory: ' + f);
+				file.watch(f, function (curr, prev) {
+				  for (var y = 0; y < this.workers.length; y++) {
+			  		this.restartWorker(this.workers[y].pid);
+					}
+				}.bind(this));
+			}
 		}
 	}
 	

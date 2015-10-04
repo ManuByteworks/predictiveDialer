@@ -5,7 +5,9 @@ var os = require('os');
 var file = fs = require('fs');
 var nconf = require('nconf');
 
-var CmonManager = function() {};
+var CmonManager = function(logger) {
+	this.logger = logger;
+};
 
 var CmonManagerInit = require("./CmonManager_init");
 var CmonManagerStartup = require("./CmonManager_startup");

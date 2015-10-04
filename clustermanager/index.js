@@ -1,4 +1,4 @@
-function CmonStart() {
+function CmonStart(logger) {
 	var cluster = require('cluster'),
 	CmonManager = require('./CmonManager'),
 	app,
@@ -9,7 +9,7 @@ function CmonStart() {
 	//
 	if (cluster.isMaster) {
 		cluster.setupMaster({silent: false});
-		manager = new CmonManager()	;
+		manager = new CmonManager(logger)	;
 		app = manager.startup();
 
 		var util = require('util');

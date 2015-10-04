@@ -1,0 +1,69 @@
+<html>
+	<head>
+		<meta http-equiv="Content-type" content="text/html;charset=UTF-8">
+		<script src="/socket.io/socket.io.js""></script>
+		<script>
+			var process;
+			var socket = io.connect("http://10.160.18.10:5000/",{transports: ['websocket']});
+			console.log(socket);
+			// Emit ready event.
+			socket.on("welcome", function(data) {
+				process = data.process;
+				console.log("Process PID = " + process);
+			});
+			socket.on("message", function(data) {
+				console.log("Server said: ", data);
+			});
+		</script>
+		<script type="text/javascript" src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+		<script>
+			$(document).ready(function(){
+				var locations = ["http://www.cappelleri.net"];
+				var len = locations.length;
+				var iframe = $('#frame');
+				var i = 0;
+				iframe.attr('src', locations[++i % len]);
+			});
+			$(window).bind('beforeunload', function() {
+				if (true) {
+					return 'you are an idiot!';
+				}
+			});
+		</script>
+		<style>
+			#header {
+				position: fixed;
+				top: 0;
+				left: 0;
+				right: 0;
+				height: 100px;
+				background-color: #abcdef;
+			}
+			#footer {
+				position: fixed;
+				bottom: 0;
+				left: 0;
+				right: 0;
+				height: 100px;
+				background-color: #abcdef;
+			}
+			#content {
+				position: fixed;
+				top: 100px;
+				bottom: 100px;
+				left: 0;
+				right: 0;
+				background-color: #F63;
+				overflow: auto;
+			}
+		</style>
+	</head>
+	<body>
+		<div id="header"></div>
+		<div id="content">
+			<iframe id="frame" style="border: 0px; margin: 0; padding: 0; width: 100%; height: 100%"></iframe>
+		</div>
+		<div id="footer"></div>
+
+	</body>
+</html>

@@ -74,10 +74,7 @@ var configure = function(man) {
 	app.use('/', routing);
 	
 	app.listen(manager.nconf.get('manPort'));
-	console.log('Manager interface started on port: ' + manager.nconf.get('manPort') + ' and pid: ' + process.pid);
-	
-	
-	
+	console.log('Manager interface started on port: ' + manager.nconf.get('manPort') + ' and pid: ' + process.pid + " and stats interval " + manager.nconf.get('statsInterval'));
 	
 	setTimeout( function() {
 		collectFullStats();
