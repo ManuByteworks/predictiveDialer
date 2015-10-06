@@ -1,13 +1,17 @@
 var log = require('npmlog');
-log.level = 'silly';
+log.level = 'verbose';
+
 var CmonStarter = require('./clustermanager');
 var worker = CmonStarter(log);
+
+
 var nconf = require('nconf');
 nconf.file({
     file: "conf/config.json"
 });
-eval(fs.readFileSync('libs/globals.js')+'');
-eval(fs.readFileSync('libs/library.js')+'');
+
+eval(fs.readFileSync('libs/globals.js') + '');
+eval(fs.readFileSync('libs/library.js') + '');
 
 if (worker) {
     //We're in a slave process (the cluster)
@@ -16,10 +20,12 @@ if (worker) {
         var port = 5000;
         var app = worker.getApp();
 
+        var bodyParser = require('body-parser')
         var session = require('express-session');
+        var iosession = require('socket.io-express-session');
         var RedisStore = require('connect-redis')(session);
         var redis = require('redis');
-        var socketIOSession = require("socket.io.session");
+        var socketIOSession = require("socket.io-express-session");
         var ECT = require('ect');
         var ectRenderer = ECT({
             watch: true,
@@ -30,20 +36,22 @@ if (worker) {
         var redisClient = redis.createClient();
         var mongodb = null;
         var morgan = require('morgan');
-        
+
         //Use morgan logger!
         var logDirectory = __dirname + '/logs';
         fs.existsSync(logDirectory) || fs.mkdirSync(logDirectory)
-        
+
         // create a rotating write stream
         var FileStreamRotator = require('file-stream-rotator')
-				var accessLogStream = FileStreamRotator.getStream({
-				  filename: logDirectory + '/access-%DATE%.log',
-				  frequency: 'daily',
-				  verbose: false,
-				  date_format: 'YYYYMMDD'
-				})
-        app.use(morgan('dev', {stream: accessLogStream}));
+        var accessLogStream = FileStreamRotator.getStream({
+            filename: logDirectory + '/access-%DATE%.log',
+            frequency: 'daily',
+            verbose: false,
+            date_format: 'YYYYMMDD'
+        })
+        app.use(morgan('dev', {
+            stream: accessLogStream
+        }));
 
         //Build session store
         var sessionStore = new RedisStore({
@@ -56,6 +64,7 @@ if (worker) {
         var sessionSettings = {
             "store": sessionStore,
             "secret": "your secret",
+            "unset": "destroy",
             "cookie": {
                 "path": '/',
                 "httpOnly": true,
@@ -67,11 +76,20 @@ if (worker) {
         };
 
         //Set session store for EXPRESS
-        app.use(session(sessionSettings));
+        var sess = session(sessionSettings);
+        app.use(sess);
+
+        //Use body parser for POSTs
+        app.use(bodyParser.json()); // to support JSON-encoded bodies
+        app.use(bodyParser.urlencoded({ // to support URL-encoded bodies
+            extended: true
+        }));
 
         //Prepare session store for SOCKET.IO and set
-        var socketSession = socketIOSession(sessionSettings);
-        app.io.use(socketSession.parser);
+        //var socketSession = socketIOSession(sessionSettings);
+        //app.io.use(socketSession.parser);
+
+        app.io.use(iosession(sess));
 
         //Setup redis adapter to allow different clusters to communicate with each other
         var redis = require('socket.io-redis');
@@ -80,7 +98,7 @@ if (worker) {
             port: 6379
         }));
 
-        //Setup EXPRESS to use ECT renderer 
+        //Setup EXPRESS to use ECT renderer
         app.engine('ect', ectRenderer.render);
         app.set('view engine', 'ect');
         app.set('views', __dirname + '/views');
@@ -95,14 +113,15 @@ if (worker) {
             req.log_prefix = "Clients HTTP Server";
             req.connectionClosed = false;
             req.on("close", function() {
-            	// request closed unexpectedly
-            	req.connectionClosed = true;
+                // request closed unexpectedly
+                req.connectionClosed = true;
             });
+            req.worker = worker;
             next();
         });
 
         //Setup EXPRESS to use mongo (one mongo client per process)
-        app.use(function(req, res, next) {      		
+        app.use(function(req, res, next) {
             if (!req.mongodb) {
                 //Make new mongodb connection
                 var MongoClient = require('mongodb').MongoClient;
@@ -142,12 +161,14 @@ if (worker) {
             socket.mongodb = mongodb;
             socket.log = log;
             socket.log_prefix = "Clients IO Server";
+            socket.session = socket.handshake.session;
+            socket.worker = worker;
             next()
         });
 
         app.io.use(function(socket, next) {
             if (!socket.mongodb) {
-                //Make new mongodb connection		  	
+                //Make new mongodb connection
                 var MongoClient = require('mongodb').MongoClient;
                 MongoClient.connect("mongodb://" + nconf.get('mongoHost') + ":" + nconf.get('mongoPort') + "/" + nconf.get('mongoDbname'), function(err, db) {
                     if (err) {
@@ -182,21 +203,10 @@ if (worker) {
             }
         });
 
+        var usersSocketRouter = require('./socket_routes/users.js');
 
         app.io.on('connection', function(socket) {
-            var address = socket.handshake.address;
-            console.log("Socket connected on pid: " + process.pid);
-            socket.emit("welcome", {
-                "process": process.pid
-            });
-            //console.log("Session in socket", socket.session);
-            socket.join("allclients");
-            socket.to('allclients').emit('message', {
-                message: "New client from " + address + " on pid " + process.pid
-            });
-            socket.on('broadcast', function(data) {
-                socket.to('allclients').emit('message', "Got message from another client from address " + address + " on pid " + process.pid + ": " + data);
-            });
+            usersSocketRouter.connected(socket, app.io);
         });
 
         //Allow EXPRESS to send static files from 'static' directory
@@ -208,6 +218,57 @@ if (worker) {
         //Finally listen to port
         worker.listen(port);
 
+        worker.onMessage = function(msg) {
+            switch (msg.cmd) {
+                case "SOCKET-DISCONNECT-USERID":
+                    if (msg.userid) {
+                        var allSockets = findClientsSocket(app.io);
+                        async.map(allSockets, function(socket, callback) {
+                            if (socket.session._id == msg.userid) {
+                                delete socket.session._id;
+                                delete socket.session.authorized;
+                                socket.session.save(function() {
+                                    socket.emit("logout");
+                                    socket.disconnect();
+                                    log.info("Clients IO Server", "Disconnecting user %s on session %s", msg.userid, socket.session.id);
+                                    callback();
+                                });
+
+                            } else {
+                                //console.log("No match for ", socket.session.id, " and ", msg.userid);
+                                callback();
+                            }
+                        }, function() {
+
+                        });
+                    }
+                    break;
+                case "SOCKET-DISCONNECT-USERID-NOTSESSION":
+                    if (msg.userid && msg.sessionid) {
+                        var allSockets = findClientsSocket(app.io);
+                        async.map(allSockets, function(socket, callback) {
+                            if (socket.session._id == msg.userid && socket.session.id !== msg.sessionid) {
+                                delete socket.session._id;
+                                delete socket.session.authorized;
+                                socket.session.save(function() {
+                                    socket.emit("logout");
+                                    socket.disconnect();
+                                    log.info("Clients IO Server", "Disconnecting user %s on session %s", msg.userid, socket.session.id);
+                                    callback();
+                                });
+
+                            } else {
+                                //console.log("No match for ", socket.session.id, " and ", msg.userid);
+                                callback();
+                            }
+
+                        }, function() {
+
+                        });
+                    }
+                    break;
+            }
+        };
 
     });
 

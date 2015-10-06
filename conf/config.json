@@ -18,7 +18,8 @@
   "mongoPort": "27017",
   "watchFiles": [
     "../clients.js",
-    "../routes/users.js",
+    "../routes",
+    "../socket_routes",
     "../libs"
   ]
 }

@@ -165,6 +165,27 @@ myClass.prototype.workerMessage = function() {
 				this.saveStatsToWorker(pid, msg);
 			break;
 			
+			case "CMON-BROADCAST-OTHERS":
+				//console.log("CMonManager got broadcast message");
+				if (msg.msg) {
+					for (var i = 0; i < this.workers.length; i++) {
+						if (this.workers[i].pid != pid) {
+							this.logger.info("CMon Manager", "Broadcasting message from pid %d to pid %d", pid, this.workers[i].pid);
+							this.sendMessageToWorker(this.workers[i], msg.msg);
+						}
+					}
+				}
+			break;
+			case "CMON-BROADCAST":
+				//console.log("CMonManager got broadcast message");
+				if (msg.msg) {
+					for (var i = 0; i < this.workers.length; i++) {
+						this.logger.info("CMon Manager", "Broadcasting message from pid %d to pid %d", pid, this.workers[i].pid);
+						this.sendMessageToWorker(this.workers[i], msg.msg);
+					}
+				}
+			break;
+			
 		}
 	}
 };

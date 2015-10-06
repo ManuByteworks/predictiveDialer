@@ -32,5 +32,9 @@ node_modules
 clustermanager/_stats/
 clustermanager/_stats
 
+#Flickr
+static/flickr
+data
+
 #Application logs
 logs/

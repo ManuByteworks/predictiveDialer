@@ -77,6 +77,12 @@ CmonWorker.prototype.handleMasterMessage = function(msg) {
 			// initiate graceful close of any connections to server
 			this.shutdown();
 		break;
+		
+		default:
+			if (this.onMessage) {
+				this.onMessage(msg);
+			}
+		break;
 	}
 };
 

@@ -1,0 +1,494 @@
+<html>
+
+	<head>
+		<meta http-equiv="Content-type" content="text/html;charset=UTF-8">
+		<script type="text/javascript" src="/js/jquery-2.1.4.min.js"></script>
+		<script type="text/javascript" src="/js/jquery-ui.min.js"></script>
+		<link rel="stylesheet" type="text/css" href="/css/bootstrap.min.css" />
+		<link rel="stylesheet" type="text/css" href="/css/bootstrap-theme.min.css" />
+		<script type="text/javascript" src="/js/bootstrap.min.js"></script>
+		<script type="text/javascript" src="/js/jquery.steps.min.js"></script>
+		<script type="text/javascript" src="/js/bootbox.min.js"></script>
+		<script type="text/javascript" src="/js/moment-with-locales.min.js"></script>
+		<script type="text/javascript" src="/js/moment-duration-format.js"></script>
+
+		<link rel="stylesheet" type="text/css" href="/css/wizard.css" />
+		<link rel="stylesheet" type="text/css" href="/css/custom.css" />
+		<link rel="stylesheet" type="text/css" href="/css/font-awesome.min.css" />
+		<script src="/socket.io/socket.io.js" "></script>
+		<title>BWS Predictive Dialer</title>
+		<style>
+			.block {
+				opacity: 0.95;
+			}
+		</style>
+	</head>
+	<body>
+
+		<div id="header">
+			<nav class="navbar navbar-inverse navbar-fixed-top">
+				<div class="container">
+					<div class="navbar-header">
+						<button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+							<span class="sr-only">Toggle navigation</span>
+							<span class="icon-bar"></span>
+							<span class="icon-bar"></span>
+							<span class="icon-bar"></span>
+						</button>
+						<a class="navbar-brand" href="#"><%- @PRODUCT_NAME %></a>
+					</div>
+					<div id="navbar" class="navbar-collapse collapse">
+						<ul class="nav navbar-nav">
+							<li class="active"><a href="#">Home</a></li>
+							<li><a href="#about">About</a></li>
+							<li><a href="#contact">Contact</a></li>
+							<li class="dropdown">
+								<a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Visualizza <span class="caret"></span></a>
+								<ul class="dropdown-menu">
+									<li><a href="#" class="show_photos">Fotografie</a></li>
+									<li><a href="#" class="show_timers">Cronometri</a></li>
+								</ul>
+							</li>
+						</ul>
+						<form class="navbar-form pull-right">
+							<button type="button" class="btn btn-danger disabled logout">Chiudi sessione</button>
+						</form>
+					</div><!--/.nav-collapse -->
+				</div>
+			</nav>
+		</div>
+		<div class="container">
+			<div id="content">
+				<div id="phone-stepper" class="container ">
+					<div id="phone-wizard">
+						<h3>Indossa le cuffie</h3>
+						<section>
+							<div class="panel panel-info ">
+								<div class="panel-heading ">Indossa le cuffie. Se non hai le cuffie, puoi utilizzare la cornetta del telefono. <b>Ricorda di non agganciare la cornetta tra una chiamata e l'altra!</b></div>
+								<div class="panel-body ">
+									<img src="/images/operator-earphones.png " style="height: 256px " class="img-responsive center-block "/>
+								</div>
+							</div>
+						</section>
+						<h3>Componi il numero <%- @INTERNALNUMBER %></h3>
+						<section>
+							<div class="panel panel-info ">
+								<div class="panel-heading ">Componi il numero <%- @INTERNALNUMBER %> sulla tastiera del telefono e premi il tasto di invio della chiamata. <b>Attendi la voce guida!</b></div>
+								<div class="panel-body ">
+									<img src="/images/dialpad-call.png " style="height: 256px " class="img-responsive center-block "/>
+								</div>
+							</div>
+						</section>
+						<h3>Inserisci il PIN <span class="myPin "></span></h3>
+						<section>
+							<div class="panel panel-info ">
+								<div class="panel-heading ">Quando la voce guida te lo chiede, <b>componi il PIN <span class="myPin "></span> sulla tastiera del telefono</b> e rimani in attesa della conferma!</div>
+								<div class="panel-body ">
+									<div style="text-align:center "><span class="myPinSequence "></span></div>
+								</div>
+							</div>
+						</section>
+					</div>
+				</div>
+				<div id="phone-waiting-photos" class="container" style="height: 500px">
+					<div class="progress">
+						<div class="progress-bar progress-bar-default progress-bar-striped active" role="progressbar" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100" style="width: 100%;">
+							<span>Per favore rimani in attesa della prossima chiamata</span>
+						</div>
+					</div>
+					<div class="panel panel-default">
+						<div class="panel-body">
+							<div id="photoboot" style="background: no-repeat center center fixed; background-size: cover; height: 100%; position:relative; transition: background 1s linear;">
+								<div id="photoboot_footer" style="position:absolute; bottom:10; right:10; left: 10; padding: 5; background-color: #ffffff; opacity: 0">
+									<h4 id="photoboot_title"></h4>
+									<p id="photoboot_description"></p>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+				<div id="phone-waiting-timers" class="container" style="height: 500px">
+					<div class="progress">
+						<div class="progress-bar progress-bar-default progress-bar-striped active" role="progressbar" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100" style="width: 100%;">
+							<span>Per favore rimani in attesa della prossima chiamata</span>
+						</div>
+					</div>
+					<div class="row">
+						<div class="col-md-3">
+							<div class="panel panel-default">
+								<div class="panel-heading"><i class="fa fa-power-off"></i> Fuori sessione</div>
+								<div class="panel-body">
+									<div class="text-center"><h1><span class="session_offline_duration">18:32</span></h1></div>
+								</div>
+							</div>
+						</div>
+						<div class="col-md-3">
+							<div class="panel panel-default">
+								<div class="panel-heading"><i class="fa fa-hourglass-start"></i> Attesa</div>
+								<div class="panel-body">
+									<div class="text-center"><h1><span class="session_wait_duration">18:32</span></h1></div>
+								</div>
+							</div>
+						</div>
+						<div class="col-md-3">
+							<div class="panel panel-default">
+								<div class="panel-heading"><i class="fa fa-phone"></i> Conversazione</div>
+								<div class="panel-body">
+									<div class="text-center"><h1><span class="session_talk_duration">09:01</span></h1></div>
+								</div>
+							</div>
+						</div>
+						<div class="col-md-3">
+							<div class="panel panel-default">
+								<div class="panel-heading"><i class="fa fa-edit"></i> Esitazione</div>
+								<div class="panel-body">
+									<div class="text-center"><h1><span class="session_post_duration">10:11</span></h1></div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+		<nav class="footer navbar navbar-inverse navbar-fixed-bottom">
+			<div class="container">
+				<p class="text-muted navbar-text"><%- @PRODUCT_NAME + " v. " + @VERSION + " per " + @CUSTOMER %></p>
+				<p class="text-muted navbar-text pull-right connectionstatus"></p>
+			</div>
+		</nav>
+		<script type="text/javascript ">
+			moment.locale('it');
+			var PHONE_STATUS_OFFLINE 	= 0;
+			var PHONE_STATUS_READY 		= 30;
+			var PHONE_STATUSES		= {};
+			var lastTickStatus;
+			var lastTickTime;
+
+			PHONE_STATUSES[0] 		= "OFFLINE";
+			PHONE_STATUSES[30] 		= "READY";
+			PHONE_STATUSES[40] 		= "INCALL";
+			PHONE_STATUSES[50] 		= "REST";
+			PHONE_STATUSES["OFFLINE"] 	= 0;
+			PHONE_STATUSES["READY"] 		= 30;
+			PHONE_STATUSES["INCALL"] 		= 40;
+			PHONE_STATUSES["REST"] 			= 50;
+
+
+			var PHONE_STATUS_INCALL 	= 40;
+			var PHONE_STATUS_REST 		= 50;
+
+			var me 										= null;
+			var photostream 					= null;
+			var photostreamrequested	= null;
+			var showingDisconnected 	= null;
+			var ticketTimeout					= 1000;
+			var switchPictureAfter		= 10;
+			var lastPictureTicks			= 10;
+			var photoStreamCurrent		= -1;
+			var preferredIdleShow			= "photos";
+
+			var pingTicks							= 30;
+			var currentTick						= 0;
+			var pingTime							= null;
+			var latency								= 0;
+
+			var hideAllContent = function() {
+				$( "#content" ).children().hide();
+			}
+
+			hideAllContent();
+			var changeStatus = function() {
+				hideAllContent();
+				if (!connected || !me) {
+					if (!showingDisconnected) {
+						showingDisconnected = bootbox.dialog({
+							onEscape: false,
+							show: true,
+							message: "Connessione al server in corso... ",
+							closeButton: false,
+
+						});
+					}
+					return;
+				} else {
+					if (showingDisconnected) {
+						showingDisconnected.modal('hide');
+						showingDisconnected = null;
+					}
+
+					//bootbox.hideAll();
+					if (me && me.pin) {
+						$( ".myPin " ).text(me.pin);
+						var tmp = " ";
+						for (var i = 0; i < me.pin.length; i++) {
+							tmp += '<img src="/images/dial-' + me.pin[i] + '.png " />';
+						}
+						$( ".myPinSequence" ).html(tmp);
+					}
+
+					if (me.currentFile) {
+						//Show current file!
+						return;
+					}
+					
+					if ((!me.phonestatus || me.phonestatus < PHONE_STATUS_READY) && (!me || !me.connectedFile)) {
+						$( ".logout" ).removeClass("disabled");
+						$( ".logout" ).text("Esci");
+					} else {
+						if (me && me.connectedFile) {
+							$( ".logout" ).addClass("disabled");
+							$( ".logout" ).text("Esita la pratica prima di uscire dalla sessione");
+						} else {
+							$( ".logout" ).addClass("disabled");
+							$( ".logout" ).text("Aggancia il telefono prima di uscire dalla sessione");
+						}
+					}
+					
+					if (!me.phonestatus || me.phonestatus < PHONE_STATUS_READY) {
+						//User is not connected to the phone line
+						
+						
+						
+						while($("#phone-wizard ").steps("getCurrentIndex") !== 0) {
+							$("#phone-wizard").steps("previous")
+						};
+						$( "#phone-stepper" ).show();
+					}
+
+					if (me && me.phonestatus >= PHONE_STATUS_READY) {
+						//User is waiting for a call
+						if (!photostream && !photostreamrequested) {
+							socket.emit('photostream');
+							photostreamrequested = true;
+						}
+					}
+
+					if (me && me.phonestatus >= PHONE_STATUS_READY && preferredIdleShow == "photos") {
+						$( "#phone-waiting-photos" ).show();
+					}
+
+					if (me && me.phonestatus >= PHONE_STATUS_READY && preferredIdleShow == "timers") {
+						$( "#phone-waiting-timers" ).show();
+					}
+
+				}
+			};
+
+			var wizard = $("#phone-wizard").steps({
+				headerTag: "h3",
+				bodyTag: "section",
+				transitionEffect: "slideLeft",
+				autoFocus: true,
+				contentContainerTag: 'div',
+				enableAllSteps: true,
+				enableFinishButton: false,
+				labels: {
+					next: 'Avanti',
+					previous: 'Indietro'
+				}
+
+			});
+
+			$("#photoboot").hover(function () {
+				$("#photoboot_footer").fadeTo("slow", .8);
+			},
+			function () {
+				$("#photoboot_footer").fadeTo("fast", 0);
+			});
+
+			$( ".show_photos" ).click(function() {
+				hideAllContent();
+				preferredIdleShow			= "photos";
+				$( "#phone-waiting-photos" ).show();
+				if (socket) {
+					socket.emit("savepref", { "name": "preferredIdleShow", "value": "photos"});
+				}
+			});
+			$( ".show_timers" ).click(function() {
+				hideAllContent();
+				preferredIdleShow			= "timers";
+				$( "#phone-waiting-timers" ).show();
+				if (socket) {
+					socket.emit("savepref", { "name": "preferredIdleShow", "value": "timers"});
+				}
+			});
+
+			var timerTick = function() {
+				currentTick++;
+				if (photostream && me.phonestatus >= PHONE_STATUS_READY && preferredIdleShow == "photos") {
+					lastPictureTicks++;
+					//console.log("Tick",  lastPictureTicks);
+					if (lastPictureTicks > switchPictureAfter) {
+						lastPictureTicks = 0;
+						photoStreamCurrent++;
+						if (photoStreamCurrent > photostream.length - 1) {
+							photoStreamCurrent = 0;
+						}
+						var photo = photostream[photoStreamCurrent];
+						var url = "/flickr/" + photo.t + "/" + photo.f + ".json";
+						jQuery.getJSON( url, function(data) {
+							//console.log("Changing css", "/flickr/" + photo.t + "/" + photo.f + ".jpg");
+							//console.log(data);
+							$( "#photoboot" ).css("background-image", "url(/flickr/" + photo.t + "/" + photo.f + ".jpg)");
+							if (data.title && data.title._content) {
+								$( "#photoboot_title" ).show();
+								$( "#photoboot_title" ).html(data.title._content);
+							} else {
+								$( "#photoboot_title" ).html("");
+								$( "#photoboot_title" ).hide();
+							}
+							if (data.description && data.description._content) {
+								$( "#photoboot_description" ).show();
+								$( "#photoboot_description" ).html(data.description._content);
+								$( "#photoboot_description a" ).each(function(el) {
+									$(this).attr("target","_new");
+								});
+							} else {
+								$( "#photoboot_description" ).hide();
+								$( "#photoboot_description" ).html("");
+							}
+
+						});
+					}
+				}
+
+				if (currentTick % pingTicks == 0) {
+
+					if (connected) {
+						socket.emit("ping");
+						pingTime = new Date();
+					}
+				}
+
+				if (me && me.statusTimes) {
+					var myIndex = PHONE_STATUSES[me.phonestatus];
+					me.statusTimes[myIndex]++;
+				} else {
+					me.statusTimes = {
+						"OFFLINE": 0,
+						"READY": 0,
+						"INCALL": 0,
+						"REST": 0
+					};
+				}
+
+				var myStatus = null;
+				if (me.phonestatus > PHONE_STATUSES["OFFLINE"]) {
+					if (me.connectedFile && me.phonestatus == PHONE_STATUSES["INCALL"]) {
+						myStatus = "incall";
+					}
+					if (me.connectedFile && (me.phonestatus == PHONE_STATUSES["READY"] || me.phonestatus == PHONE_STATUSES["REST"])) {
+						myStatus = "postcall";
+					}
+					if (!me.connectedFile && (me.phonestatus == PHONE_STATUSES["READY"] || me.phonestatus == PHONE_STATUSES["REST"])) {
+						myStatus = "wait";
+					}
+				} else {
+					myStatus = "offline";
+				}
+
+				if (me.sessionStats) {
+					if (lastTickStatus == myStatus) {
+						var diff = (new Date()).getTime() - lastTickTime.getTime();
+						me.sessionStats[myStatus+"Time"] += parseInt(diff/1000);
+					}
+				} else {
+					me.sessionStats = {
+						"connectedCalls": 0,
+						"offlineTime": 0,
+						"waitTime": 0,
+						"incallTime": 0,
+						"postcallTime": 0
+					}
+				}
+
+
+				$( ".session_offline_duration" ).text(moment.duration(me.sessionStats["offlineTime"],"seconds").format("hh:mm:ss", { forceLength: true, trim: false  }));
+				$( ".session_wait_duration" ).text(moment.duration(me.sessionStats["waitTime"],"seconds").format("hh:mm:ss", { forceLength: true, trim: false  }));
+				$( ".session_talk_duration" ).text(moment.duration(me.sessionStats["incallTime"],"seconds").format("hh:mm:ss", { forceLength: true, trim: false  }));
+				$( ".session_post_duration" ).text(moment.duration(me.sessionStats["postcallTime"],"seconds").format("hh:mm:ss", { forceLength: true, trim: false  }));
+
+
+				lastTickStatus = myStatus;
+				lastTickTime = new Date();
+
+				if (connected) {
+					$( ".connectionstatus" ).text("Server connected, latency " + latency + "ms");
+				} else {
+					$( ".connectionstatus" ).text("Server disconnected");
+				}
+
+				//Always restart the timer
+				setTimeout(function() { timerTick(); }, ticketTimeout);
+			};
+
+			setTimeout(function() { timerTick(); }, ticketTimeout);
+		</script>
+		<script type="text/javascript ">
+			console.log("Connecting to: " + document.location.hostname + ":" + document.location.port);
+			var socket = io.connect(document.location.hostname + ":" + document.location.port,{
+				transports: ['websocket'],
+				reconnectionDelay: 500,
+				reconnectionDelayMax: 2000,
+				timeout: 3000,
+				reconnection: true,
+				'reconnection limit': 3000,
+				'max reconnection attempts': Number.MAX_VALUE,
+				'connect timeout': 7000,
+				forceNew: true
+			});
+
+			var connected = socket.connected;
+			socket.on('connect', function(data) {
+				console.log("Socket connected ");
+				connected = true;
+				changeStatus();
+				socket.emit("ping");
+				pingTime = new Date();
+			});
+			
+			socket.on('logout', function() {
+				document.location = "/status";
+			});
+			
+			socket.on('disconnect', function(data) {
+				console.log("Socket disconnected: ", data);
+				if (data == "io server disconnect") {
+					//Server does not want us!
+					document.location = "/status";
+				}
+				connected = false;
+				changeStatus();
+			});
+
+			socket.on('status', function(data) {
+				me = data;
+				console.log("Got new status from server ", me);
+				changeStatus();
+			});
+
+			socket.on("pong", function(data) {
+				console.log("PONG");
+				latency = parseInt(((new Date()).getTime() - pingTime.getTime())/2);
+			});
+
+			socket.on('photostream', function(data) {
+				photostream = data.sort(function(a, b) {
+					if (a.p < a.b) {
+						return -1;
+					}
+					if (a.p > a.b) {
+						return 1;
+					}
+					return 0;
+				});
+
+			});
+
+			changeStatus();
+
+
+		</script>
+	</body>
+
+</html>

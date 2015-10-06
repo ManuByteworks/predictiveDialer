@@ -1,0 +1,72 @@
+<html>
+
+	<head>
+		<script type="text/javascript" src="/js/jquery-2.1.4.min.js"></script>
+		<script type="text/javascript" src="/js/jquery-ui.min.js"></script>
+		<link rel="stylesheet" type="text/css" href="/css/bootstrap.min.css" />
+		<link rel="stylesheet" type="text/css" href="/css/bootstrap-theme.min.css" />
+		<script type="text/javascript" src="/js/bootstrap.min.js"></script>
+		<title>BWS Predictive Dialer</title>
+		<style>
+			.block {
+				opacity: 0.95;
+			}
+		</style>
+	</head>
+	<% len = @BACKGROUNDS.length %>
+	<% pos = @getRandomInt(0,len-1) %>
+	<% url = @BACKGROUNDS[pos] %>
+	<body style="background: url('/backgrounds/<%- url %>') no-repeat center center fixed; background-size: cover;">
+		<div class="container">
+			<div id="loginbox" style="margin-top:50px;" class="mainbox col-md-6 col-md-offset-3 col-sm-8 col-sm-offset-2">
+				<div class="panel panel-primary block">
+					<div class="panel-heading">
+						<div class="panel-title"><%- @PLEASE_LOGIN %></div>
+						<div style="float:right; font-size: 80%; position: relative; top:-10px">Versione <%- @VERSION %> - <a style="color:#fff" href="<%- @AUTHOR_URL %>"><%- @AUTHOR_SHORT %></a></div>
+					</div>
+
+					<div style="padding-top:30px" class="panel-body">
+
+						<div style="display:none" id="login-alert" class="alert alert-danger col-sm-12"></div>
+
+						<form id="loginform" class="form-horizontal" role="form" action="/login" method="post">
+
+							<div style="margin-bottom: 25px" class="input-group">
+								<span class="input-group-addon"><i class="glyphicon glyphicon-user"></i></span>
+								<input id="login-username" type="text" class="form-control" name="username" value="<%- @username %>" placeholder="Inserisci il tuo username">
+							</div>
+
+							<div style="margin-bottom: 25px" class="input-group">
+								<span class="input-group-addon"><i class="glyphicon glyphicon-lock"></i></span>
+								<input id="login-password" type="password" class="form-control" name="password" placeholder="Inserisci la password">
+							</div>
+
+							<div style="margin-top:10px" class="form-group">
+								<!-- Button -->
+								<div class="col-sm-12 controls">
+									<div class="row">
+										<div class="col-sm-3"><button id="btn-login" href="#" class="btn btn-success"><%- @LOGIN %></button></div>
+										<div class="col-sm-9">
+											<% if (@error) :%>
+											<div class="alert alert-danger" role="alert"><span class="glyphicon glyphicon-exclamation-sign" aria-hidden="true"></span> <%- @error %></div>
+											<% end %>
+										</div>
+									</div>
+								</div>
+
+							</div>
+
+						</form>
+					</div>
+					<div class="panel-footer">
+						<div style="float:right; font-size: 80%; position: relative; top:-10px">Licenza: <%- @LICENCE %> for <%- @CUSTOMER %></div>
+					</div>
+				</div>
+			</div>
+		</div>
+		<script type="text/javascript">
+
+		</script>
+	</body>
+
+</html>
